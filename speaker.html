@@ -126,6 +126,11 @@
     <h1>Live Translator</h1>
   </div>
   <div style="display:flex;align-items:center;gap:16px">
+    <a href="meeting.html" style="font-size:.78rem;color:var(--muted2);text-decoration:none;
+      border:1px solid var(--border);padding:6px 12px;border-radius:8px;transition:all .2s"
+      onmouseover="this.style.color='var(--accent2)'" onmouseout="this.style.color='var(--muted2)'">
+      ⇄ Meeting mode
+    </a>
     <div class="conn-count"><div class="dot"></div><span id="conn-count">0 listeners connected</span></div>
     <div class="room-display" id="room-display">No room</div>
   </div>
@@ -245,6 +250,12 @@
   <!-- LANGUAGES -->
   <div class="card">
     <div class="card-title">Target Languages</div>
+    <div id="listener-langs" style="display:none;font-size:.78rem;color:var(--success);
+      background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;
+      padding:8px 12px;margin-bottom:12px;line-height:1.5"></div>
+    <div style="font-size:.78rem;color:var(--muted2);margin-bottom:10px">
+      Optional extras — add languages beyond what listeners have requested:
+    </div>
     <div class="chip-grid" id="chip-grid"></div>
     <div class="add-lang-row">
       <input type="text" id="custom-lang" placeholder="Add language (e.g. Tigrinya, Pashto...)" />
@@ -281,6 +292,7 @@ const FB_CONFIG = {
 };
 
 let db = null, connected = false, roomCode = '';
+let listenerLangs = new Set();
 let isListening = false, recognition = null;
 let selectedLangs = new Set();
 let historyItems = [];
@@ -336,8 +348,24 @@ window.connectRoom = async function() {
     const app = initializeApp({...FB_CONFIG}, 'iesv-t-' + Date.now());
     db = getDatabase(app);
     onValue(ref(db, `rooms/${roomCode}/connections`), snap => {
-      const n = snap.exists() ? Object.keys(snap.val()).length : 0;
+      if (!snap.exists()) {
+        listenerLangs = new Set();
+        document.getElementById('conn-count').textContent = '0 listeners connected';
+        return;
+      }
+      const conns = snap.val();
+      const n = Object.keys(conns).length;
       document.getElementById('conn-count').textContent = `${n} listener${n===1?'':'s'} connected`;
+      // Collect all listener languages
+      listenerLangs = new Set(Object.values(conns).map(c => c.lang).filter(Boolean));
+      // Show in the listener langs display
+      const ll = document.getElementById('listener-langs');
+      if (listenerLangs.size > 0) {
+        ll.textContent = 'Auto-translating into: ' + [...listenerLangs].join(', ');
+        ll.style.display = 'block';
+      } else {
+        ll.style.display = 'none';
+      }
     });
     await set(ref(db, `rooms/${roomCode}/active`), true);
     await set(ref(db, `rooms/${roomCode}/latest`), {text:'',translations:{},ts:Date.now(),langs:[]});
@@ -399,7 +427,7 @@ function renderTransCards() {
 // ── Mic ────────────────────────────────────────────────
 window.toggleMic = function() {
   if (!connected) { alert('Connect to a room first.'); return; }
-  if (selectedLangs.size === 0) { alert('Select at least one language.'); return; }
+  // Languages come from listeners automatically — manual selection is optional extra
   isListening ? stopMic() : startMic();
 };
 function startMic() {
@@ -443,8 +471,11 @@ function setMicLabel(msg, type = '') {
 
 // ── Translation ────────────────────────────────────────
 async function translateAndPush(text) {
-  if (!text || selectedLangs.size === 0) return;
-  const langList = [...selectedLangs].join(', ');
+  if (!text) return;
+  // Merge listener-registered languages with any manually added extras
+  const allLangs = new Set([...listenerLangs, ...selectedLangs]);
+  if (allLangs.size === 0) { setMicLabel('No listeners connected and no languages selected', 'err'); return; }
+  const langList = [...allLangs].join(', ');
   const langNames = {
     'en-GB':'English','en-US':'English','sv-SE':'Swedish','ar-SA':'Arabic',
     'zh-CN':'Chinese','nl-NL':'Dutch','fr-FR':'French','de-DE':'German',
@@ -479,7 +510,7 @@ async function translateAndPush(text) {
         card?.classList.add('flash'); setTimeout(() => card?.classList.remove('flash'), 1500);
       }
     });
-    if (db) await set(ref(db, `rooms/${roomCode}/latest`), {text, translations, ts: Date.now(), langs: [...selectedLangs]});
+    if (db) await set(ref(db, `rooms/${roomCode}/latest`), {text, translations, ts: Date.now(), langs: [...allLangs]});
     addHistory(text);
     setMicLabel('Translated — ready for next phrase', 'active');
   } catch(e) {
