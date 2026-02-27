@@ -109,6 +109,17 @@
   .xcard-text.waiting{color:var(--muted);font-style:italic;font-size:.88rem}
 
   .ts{font-size:.7rem;color:var(--muted);text-align:right;margin-top:4px}
+
+  .mode-nav{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;
+    background:rgba(15,25,41,.7);backdrop-filter:blur(8px);
+    position:relative;z-index:2}
+  .mnav-btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;
+    font-family:'Syne',sans-serif;font-weight:700;font-size:.75rem;letter-spacing:.04em;
+    color:rgba(255,255,255,.5);padding:7px 16px;border-radius:10px;
+    border:1px solid rgba(255,255,255,.1);transition:all .2s;white-space:nowrap}
+  .mnav-btn:hover{color:white;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.06)}
+  .mnav-btn.active{color:white;background:linear-gradient(135deg,rgba(37,99,235,.35),rgba(14,165,233,.25));
+    border-color:rgba(14,165,233,.5);box-shadow:0 0 12px rgba(14,165,233,.15)}
 </style>
 </head>
 <body>
@@ -156,12 +167,13 @@
   <div class="top-bar">
     <div class="site-tag">🌐 Live Translator</div>
     <div class="room-tag" id="m-room-tag">—</div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <a href="meeting.html" style="font-size:.72rem;color:rgba(255,255,255,.4);text-decoration:none;
-        border:1px solid rgba(255,255,255,.12);padding:5px 10px;border-radius:7px">⇄ Meeting</a>
-      <button class="leave-btn" onclick="leaveRoom()">Leave</button>
-    </div>
+    <button class="leave-btn" onclick="leaveRoom()">Leave</button>
   </div>
+<div class="mode-nav">
+  <a href="speaker.html" class="mnav-btn">🎤 Speaker</a>
+  <a href="meeting.html" class="mnav-btn">⇄ Meeting</a>
+  <a href="listener.html" class="mnav-btn active">👂 Listener</a>
+</div>
   <div class="content">
     <div class="status-bar">
       <div class="sdot" id="sdot"></div>
