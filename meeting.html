@@ -479,7 +479,9 @@ window.addEventListener('load', () => {
   });
   document.getElementById('key-ollama').value = localStorage.getItem('lt_key_ollama') || 'http://localhost:11434';
   document.getElementById('ollama-model').value = localStorage.getItem('lt_ollama_model') || 'qwen2.5:7b';
-  document.getElementById('room-code').value = localStorage.getItem('lt_room') || 'A11';
+  const savedRoom = localStorage.getItem('lt_room') || '';
+  const cleanRoom = (savedRoom && !savedRoom.includes('@') && !savedRoom.includes('.')) ? savedRoom : 'A11';
+  document.getElementById('room-code').value = cleanRoom;
   const savedProvider = localStorage.getItem('lt_provider');
   if (savedProvider) setProvider(savedProvider);
 
