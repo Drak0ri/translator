@@ -354,7 +354,7 @@
 
     <div class="field-single" style="margin-top:4px">
       <label>Room Code <span style="color:var(--muted);font-size:.72rem">(share with listener.html users)</span></label>
-      <input type="text" id="room-code" placeholder="e.g. MEETING-2026" maxlength="20"
+      <input type="text" id="room-code" placeholder="e.g. A11" maxlength="20"
         oninput="this.value=this.value.toUpperCase()" />
     </div>
 
@@ -463,7 +463,7 @@ window.addEventListener('load', () => {
   });
   document.getElementById('key-ollama').value = localStorage.getItem('lt_key_ollama') || 'http://localhost:11434';
   document.getElementById('ollama-model').value = localStorage.getItem('lt_ollama_model') || 'qwen2.5:7b';
-  document.getElementById('room-code').value = localStorage.getItem('lt_room') || '';
+  document.getElementById('room-code').value = localStorage.getItem('lt_room') || 'A11';
   const savedProvider = localStorage.getItem('lt_provider');
   if (savedProvider) setProvider(savedProvider);
 
