@@ -121,7 +121,7 @@
     <p>Enter the room code from your speaker, then choose your language.</p>
     <div class="field">
       <label>Room Code</label>
-      <input type="text" id="j-room" placeholder="e.g. SPRING-2026" maxlength="20"
+      <input type="text" id="j-room" placeholder="e.g. A11" maxlength="20"
         oninput="this.value=this.value.toUpperCase()" />
     </div>
     <div class="field">
@@ -155,7 +155,11 @@
   <div class="top-bar">
     <div class="site-tag">🌐 Live Translator</div>
     <div class="room-tag" id="m-room-tag">—</div>
-    <button class="leave-btn" onclick="leaveRoom()">Leave</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a href="meeting.html" style="font-size:.72rem;color:rgba(255,255,255,.4);text-decoration:none;
+        border:1px solid rgba(255,255,255,.12);padding:5px 10px;border-radius:7px">⇄ Meeting</a>
+      <button class="leave-btn" onclick="leaveRoom()">Leave</button>
+    </div>
   </div>
   <div class="content">
     <div class="status-bar">
