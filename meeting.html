@@ -147,9 +147,9 @@
   .display-original{font-size:.88rem;color:var(--muted2);font-style:italic;margin-bottom:16px;
     padding-bottom:14px;border-bottom:1px solid var(--border)}
   .display-original.projector{font-size:1.1rem}
-  .trans-grid-meet{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-  .trans-grid-meet.projector{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-  .tcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px;
+  .trans-grid-meet{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+  .trans-grid-meet.projector{display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+  .tcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px;min-width:200px;max-width:320px;flex:1;
     position:relative;overflow:hidden}
   .tcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
     background:linear-gradient(90deg,var(--accent),var(--accent2));transform:scaleX(0);
