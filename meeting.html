@@ -271,16 +271,6 @@
   .disclaimer input[type=checkbox]{width:16px;height:16px;accent-color:var(--warn);
     cursor:pointer;flex-shrink:0}
 
-  /* Timer */
-  .timer-bar{display:flex;align-items:center;gap:10px;font-family:'DM Mono',monospace;
-    font-size:.82rem;color:var(--muted2)}
-  .timer-bar.warn{color:var(--warn)}
-  .timer-bar.danger{color:var(--danger);animation:tpulse 1s infinite}
-  @keyframes tpulse{0%,100%{opacity:1}50%{opacity:.5}}
-  .timer-dot{width:7px;height:7px;border-radius:50%;background:var(--success)}
-  .timer-bar.warn .timer-dot{background:var(--warn)}
-  .timer-bar.danger .timer-dot{background:var(--danger)}
-
   /* Download btn */
   .dl-btn{background:none;border:1px solid var(--border);border-radius:8px;
     color:var(--muted2);font-family:'DM Sans',sans-serif;font-size:.78rem;
@@ -330,7 +320,23 @@
      SETUP SCREEN
 ══════════════════════════════════════ -->
 <div id="setup-screen">
-  <div style="padding-top:8px;margin-bottom:24px">
+  <!-- Previous session download bar -->
+<div id="transcript-bar" style="display:none;margin-bottom:16px;
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:14px 18px;display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;gap:10px">
+    <span style="font-size:.78rem;color:var(--muted2)">📋 Previous session:</span>
+    <span style="font-family:'DM Mono',monospace;font-size:.78rem;color:var(--accent2)" id="tp-room">—</span>
+    <span style="font-size:.74rem;color:var(--muted)" id="tp-started"></span>
+    <span style="font-size:.74rem;font-family:'DM Mono',monospace" id="tp-expiry-text"></span>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="dl-btn" onclick="downloadSavedTranscript()">⬇ Download transcript</button>
+    <button class="dl-btn" onclick="clearTranscript()" style="color:var(--danger);border-color:rgba(239,68,68,.3)">🗑 Clear</button>
+  </div>
+</div>
+
+<div style="padding-top:8px;margin-bottom:24px">
     <div class="setup-title">Meeting Setup</div>
     <div class="setup-sub">Configure your speakers, choose a translation provider, then start the meeting.</div>
   </div>
@@ -471,13 +477,7 @@
       color:var(--muted2);font-family:'DM Sans',sans-serif;font-size:.78rem;padding:6px 14px;cursor:pointer">
       ← End &amp; Reconfigure
     </button>
-    <div class="timer-bar" id="timer-bar">
-      <div class="timer-dot"></div>
-      <span id="timer-display">30:00</span>
-      <span style="font-family:'DM Sans',sans-serif;font-size:.72rem;color:var(--muted)">session remaining</span>
-    </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <button class="dl-btn" onclick="downloadTranscript()">⬇ Download transcript</button>
       <button class="projector-toggle" id="projector-toggle" onclick="toggleProjector()">
         📽 Projector view
       </button>
@@ -498,17 +498,6 @@
   </div>
 </div>
 
-<!-- Timer expired modal -->
-<div class="modal-overlay" id="expire-modal">
-  <div class="modal">
-    <h2>⏱ Session time reached</h2>
-    <p>Your 30-minute session has ended. The transcript is available to download before history is cleared.</p>
-    <div class="modal-btns">
-      <button class="modal-btn primary" onclick="downloadThenEnd()">⬇ Download transcript &amp; end</button>
-      <button class="modal-btn danger" onclick="forceEnd()">End without downloading</button>
-    </div>
-  </div>
-</div>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -553,8 +542,6 @@ let speakers = []; // {id, name, langCode, langLabel, recognition, isRecording}
 let selectedLangs = new Set(['Arabic','Swedish']);
 let listenerLangs = new Set();
 let historyItems = [];
-let sessionTimer = null;
-let sessionSecondsLeft = 30 * 60;
 let sessionStartTime = null;
 let displayMode = 'table'; // 'table' | 'projector'
 let projectorActive = false;
@@ -727,6 +714,7 @@ window.startMeeting = async function() {
       document.getElementById('conn-text').textContent = `${n} listener${n===1?'':'s'}`;
     });
 
+    sessionStartTime = Date.now();
     await set(ref(db, `rooms/${roomCode}/active`), true);
     await set(ref(db, `rooms/${roomCode}/latest`), {text:'',translations:{},ts:Date.now(),langs:[]});
 
@@ -739,7 +727,6 @@ window.startMeeting = async function() {
 
     buildMeetingUI();
     if (displayMode === 'projector') toggleProjector(true);
-    startSessionTimer();
   } catch(e) { setSetupStatus('Firebase error: ' + e.message, 'err'); }
 };
 
@@ -967,33 +954,8 @@ function getKey() {
          localStorage.getItem('lt_key_' + currentProvider) || '';
 }
 
-// ── Timer ─────────────────────────────────────────────
-function startSessionTimer() {
-  sessionSecondsLeft = 30 * 60;
-  sessionStartTime = Date.now();
-  clearInterval(sessionTimer);
-  sessionTimer = setInterval(() => {
-    sessionSecondsLeft--;
-    const m = Math.floor(sessionSecondsLeft / 60);
-    const s = sessionSecondsLeft % 60;
-    const display = `${m}:${String(s).padStart(2,'0')}`;
-    document.getElementById('timer-display').textContent = display;
-    const bar = document.getElementById('timer-bar');
-    if (sessionSecondsLeft <= 0) {
-      clearInterval(sessionTimer);
-      bar.className = 'timer-bar danger';
-      document.getElementById('expire-modal').classList.add('open');
-    } else if (sessionSecondsLeft <= 300) {
-      bar.className = 'timer-bar danger';
-    } else if (sessionSecondsLeft <= 600) {
-      bar.className = 'timer-bar warn';
-    }
-  }, 1000);
-}
-
-// ── Transcript ─────────────────────────────────────────
-window.downloadTranscript = function() {
-  if (historyItems.length === 0) { alert('No transcript to download yet.'); return; }
+// ── Transcript / localStorage ─────────────────────────
+function buildTranscriptLines() {
   const lines = [];
   const started = sessionStartTime ? new Date(sessionStartTime).toLocaleString('en-GB') : 'Unknown';
   lines.push('LIVE TRANSLATOR — MEETING TRANSCRIPT');
@@ -1006,12 +968,35 @@ window.downloadTranscript = function() {
   lines.push('They should not be used as an official record of this meeting.');
   lines.push('');
   lines.push('-------------------------------------');
-  // History is newest-first, reverse for chronological
   [...historyItems].reverse().forEach(item => {
     lines.push(`[${item.time}] Speaker ${item.idx+1} — ${item.sp.name} (${item.sp.langLabel})`);
     lines.push(`  Original: ${item.text}`);
     lines.push('');
   });
+  return lines;
+}
+
+function saveTranscriptToStorage() {
+  if (historyItems.length === 0) return;
+  const payload = {
+    room: roomCode,
+    started: sessionStartTime,
+    savedAt: Date.now(),
+    expiresAt: Date.now() + 30 * 60 * 1000,
+    items: [...historyItems].reverse().map(item => ({
+      time: item.time,
+      speakerNum: item.idx + 1,
+      speakerName: item.sp.name,
+      speakerLang: item.sp.langLabel,
+      text: item.text
+    }))
+  };
+  localStorage.setItem('lt_transcript', JSON.stringify(payload));
+}
+
+window.downloadTranscript = function() {
+  if (historyItems.length === 0) { alert('No transcript to download yet.'); return; }
+  const lines = buildTranscriptLines();
   const blob = new Blob([lines.join('\n')], {type:'text/plain'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1041,12 +1026,10 @@ window.forceEnd = function() {
   doEndMeeting();
 };
 function doEndMeeting() {
-  clearInterval(sessionTimer);
-  sessionSecondsLeft = 30 * 60;
+  saveTranscriptToStorage();
+  renderSetupTranscript();
   historyItems = [];
   document.getElementById('history-list').innerHTML = '<div style="color:var(--muted);font-size:.8rem;font-style:italic">Nothing yet</div>';
-  document.getElementById('timer-display').textContent = '30:00';
-  document.getElementById('timer-bar').className = 'timer-bar';
   document.getElementById('disclaimer-check').checked = false;
   window.toggleStartBtn();
   speakers.forEach(sp => { if (sp.recognition) try { sp.recognition.stop(); } catch(e) {} });
@@ -1108,6 +1091,87 @@ async function callOllama(prompt) {
   if (d.error) throw new Error(d.error);
   return parseJSON(d.message.content);
 }
+
+// ── Setup transcript bar ─────────────────────────────
+let expiryInterval = null;
+
+function renderSetupTranscript() {
+  const raw = localStorage.getItem('lt_transcript');
+  const bar = document.getElementById('transcript-bar');
+  if (!raw) { bar.style.display = 'none'; clearInterval(expiryInterval); return; }
+
+  let data;
+  try { data = JSON.parse(raw); } catch(e) { localStorage.removeItem('lt_transcript'); return; }
+
+  if (Date.now() > data.expiresAt) {
+    localStorage.removeItem('lt_transcript');
+    bar.style.display = 'none';
+    return;
+  }
+
+  bar.style.display = 'flex';
+  document.getElementById('tp-room').textContent = data.room || '—';
+  document.getElementById('tp-started').textContent = data.started
+    ? new Date(data.started).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})
+    : '';
+
+  clearInterval(expiryInterval);
+  updateExpiry(data.expiresAt);
+  expiryInterval = setInterval(() => {
+    if (Date.now() > data.expiresAt) {
+      localStorage.removeItem('lt_transcript');
+      bar.style.display = 'none';
+      clearInterval(expiryInterval);
+      return;
+    }
+    updateExpiry(data.expiresAt);
+  }, 30000);
+}
+
+function updateExpiry(expiresAt) {
+  const minLeft = Math.ceil((expiresAt - Date.now()) / 60000);
+  const txt = document.getElementById('tp-expiry-text');
+  const col = minLeft <= 2 ? 'var(--danger)' : minLeft <= 5 ? 'var(--warn)' : 'var(--muted)';
+  txt.style.color = col;
+  txt.textContent = minLeft <= 1 ? '(expires soon)' : `(expires in ${minLeft} min)`;
+}
+
+window.downloadSavedTranscript = function() {
+  const raw = localStorage.getItem('lt_transcript');
+  if (!raw) return;
+  const data = JSON.parse(raw);
+  const lines = [];
+  lines.push('LIVE TRANSLATOR — MEETING TRANSCRIPT');
+  lines.push('=====================================');
+  lines.push('Room: ' + data.room);
+  lines.push('Started: ' + (data.started ? new Date(data.started).toLocaleString('en-GB') : 'Unknown'));
+  lines.push('Downloaded: ' + new Date().toLocaleString('en-GB'));
+  lines.push('');
+  lines.push('DISCLAIMER: These translations were generated by AI and may contain errors.');
+  lines.push('They should not be used as an official record of this meeting.');
+  lines.push('');
+  lines.push('-------------------------------------');
+  (data.items || []).forEach(item => {
+    lines.push(`[${item.time}] Speaker ${item.speakerNum} — ${item.speakerName} (${item.speakerLang})`);
+    lines.push(`  ${item.text}`);
+    lines.push('');
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `transcript-${data.room}-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+window.clearTranscript = function() {
+  localStorage.removeItem('lt_transcript');
+  renderSetupTranscript();
+};
+
+// Run on load
+renderSetupTranscript();
 </script>
 </body>
 </html>
