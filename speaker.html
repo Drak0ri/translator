@@ -149,6 +149,49 @@
 </div>
 <div class="main">
 
+  <!-- MIC -->
+  <div class="card">
+    <div class="card-title">Speak &amp; Translate</div>
+    <div class="mic-area">
+      <div class="lang-row">
+        <label>Speaking in:</label>
+        <select id="input-lang">
+          <option value="en-GB">English (UK)</option>
+          <option value="en-US">English (US)</option>
+          <option value="sv-SE">Swedish</option>
+          <option value="ar-SA">Arabic</option>
+          <option value="zh-CN">Chinese (Mandarin)</option>
+          <option value="nl-NL">Dutch</option>
+          <option value="fr-FR">French</option>
+          <option value="de-DE">German</option>
+          <option value="el-GR">Greek</option>
+          <option value="hi-IN">Hindi</option>
+          <option value="id-ID">Indonesian</option>
+          <option value="it-IT">Italian</option>
+          <option value="ja-JP">Japanese</option>
+          <option value="ko-KR">Korean</option>
+          <option value="ms-MY">Malay</option>
+          <option value="no-NO">Norwegian</option>
+          <option value="fa-IR">Persian (Farsi)</option>
+          <option value="pl-PL">Polish</option>
+          <option value="pt-BR">Portuguese (Brazil)</option>
+          <option value="pt-PT">Portuguese (Portugal)</option>
+          <option value="ro-RO">Romanian</option>
+          <option value="ru-RU">Russian</option>
+          <option value="es-ES">Spanish (Spain)</option>
+          <option value="es-MX">Spanish (Mexico)</option>
+          <option value="tr-TR">Turkish</option>
+          <option value="uk-UA">Ukrainian</option>
+          <option value="ur-PK">Urdu</option>
+          <option value="vi-VN">Vietnamese</option>
+        </select>
+      </div>
+      <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+      <div class="mic-label" id="mic-label">Connect to a room first, then press mic</div>
+      <div class="transcript-box empty" id="transcript">Spoken words will appear here...</div>
+    </div>
+  </div>
+
   <!-- SETUP -->
   <div class="card">
     <div class="card-title">Setup — keys saved locally to this device only</div>
@@ -212,49 +255,6 @@
     <div class="btn-row">
       <button class="btn" onclick="connectRoom()">Connect to Room</button>
       <span id="setup-status"></span>
-    </div>
-  </div>
-
-  <!-- MIC -->
-  <div class="card">
-    <div class="card-title">Speak &amp; Translate</div>
-    <div class="mic-area">
-      <div class="lang-row">
-        <label>Speaking in:</label>
-        <select id="input-lang">
-          <option value="en-GB">English (UK)</option>
-          <option value="en-US">English (US)</option>
-          <option value="sv-SE">Swedish</option>
-          <option value="ar-SA">Arabic</option>
-          <option value="zh-CN">Chinese (Mandarin)</option>
-          <option value="nl-NL">Dutch</option>
-          <option value="fr-FR">French</option>
-          <option value="de-DE">German</option>
-          <option value="el-GR">Greek</option>
-          <option value="hi-IN">Hindi</option>
-          <option value="id-ID">Indonesian</option>
-          <option value="it-IT">Italian</option>
-          <option value="ja-JP">Japanese</option>
-          <option value="ko-KR">Korean</option>
-          <option value="ms-MY">Malay</option>
-          <option value="no-NO">Norwegian</option>
-          <option value="fa-IR">Persian (Farsi)</option>
-          <option value="pl-PL">Polish</option>
-          <option value="pt-BR">Portuguese (Brazil)</option>
-          <option value="pt-PT">Portuguese (Portugal)</option>
-          <option value="ro-RO">Romanian</option>
-          <option value="ru-RU">Russian</option>
-          <option value="es-ES">Spanish (Spain)</option>
-          <option value="es-MX">Spanish (Mexico)</option>
-          <option value="tr-TR">Turkish</option>
-          <option value="uk-UA">Ukrainian</option>
-          <option value="ur-PK">Urdu</option>
-          <option value="vi-VN">Vietnamese</option>
-        </select>
-      </div>
-      <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
-      <div class="mic-label" id="mic-label">Connect to a room first, then press mic</div>
-      <div class="transcript-box empty" id="transcript">Spoken words will appear here...</div>
     </div>
   </div>
 
