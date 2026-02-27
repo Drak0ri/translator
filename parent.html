@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IESV Live Translator</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f7f9fc;--surface:#ffffff;--card:#ffffff;--border:#e2e8f4;
+    --accent:#2563eb;--accent2:#0ea5e9;--success:#10b981;--warn:#f59e0b;--danger:#ef4444;
+    --text:#0f1929;--muted:#8096b4;--muted2:#4a6080;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+  body::before{content:'';position:fixed;top:0;left:0;right:0;height:260px;
+    background:linear-gradient(160deg,#0f1929 0%,#1a2f5a 100%);z-index:0;pointer-events:none}
+
+  /* Join screen */
+  #join-screen{
+    position:relative;z-index:1;
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+  }
+  .join-card{
+    background:white;border-radius:24px;padding:40px;
+    box-shadow:0 20px 60px rgba(0,0,0,.12);
+    max-width:420px;width:100%;
+    text-align:center;
+  }
+  .join-logo{
+    width:64px;height:64px;border-radius:18px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex;align-items:center;justify-content:center;
+    font-size:2rem;margin:0 auto 20px;
+  }
+  .join-card h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1.6rem;letter-spacing:-.03em;margin-bottom:6px}
+  .join-card p{font-size:.9rem;color:var(--muted);margin-bottom:28px;line-height:1.6}
+  .field{text-align:left;margin-bottom:16px}
+  .field label{display:block;font-size:.78rem;font-weight:600;color:var(--muted2);margin-bottom:6px;letter-spacing:.02em}
+  .field input,.field select{
+    width:100%;background:var(--bg);border:1.5px solid var(--border);
+    border-radius:10px;padding:13px 16px;
+    color:var(--text);font-family:'DM Sans',sans-serif;font-size:.95rem;outline:none;
+    transition:border-color .2s;
+  }
+  .field input:focus,.field select:focus{border-color:var(--accent)}
+  .field select{cursor:pointer}
+  .join-btn{
+    width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:white;border:none;border-radius:12px;padding:15px;
+    font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;
+    cursor:pointer;transition:opacity .2s,transform .1s;margin-top:8px;
+  }
+  .join-btn:hover{opacity:.9}.join-btn:active{transform:scale(.98)}
+  .join-err{color:var(--danger);font-size:.82rem;margin-top:10px;min-height:18px}
+  .firebase-fields{border-top:1px solid var(--border);padding-top:20px;margin-top:20px}
+  .firebase-fields summary{font-size:.82rem;color:var(--muted);cursor:pointer;margin-bottom:12px;list-style:none}
+  .firebase-fields summary::-webkit-details-marker{display:none}
+  .firebase-fields summary::before{content:'⚙ '}
+
+  /* Main translator screen */
+  #main-screen{display:none;min-height:100vh;position:relative;z-index:1}
+
+  .top-bar{
+    position:relative;z-index:2;
+    padding:16px 24px;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .school-tag{font-family:'Syne',sans-serif;font-weight:800;font-size:.95rem;color:white;letter-spacing:-.01em}
+  .room-tag{font-family:'DM Sans',sans-serif;font-size:.78rem;color:rgba(255,255,255,.5);
+    background:rgba(255,255,255,.1);padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.15)}
+  .leave-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
+    color:rgba(255,255,255,.7);font-family:'DM Sans',sans-serif;font-size:.78rem;
+    padding:6px 14px;border-radius:8px;cursor:pointer}
+  .leave-btn:hover{background:rgba(255,255,255,.2)}
+
+  .content{max-width:600px;margin:0 auto;padding:24px 24px 48px;}
+
+  /* Connection status */
+  .status-bar{
+    background:white;border-radius:14px;padding:14px 20px;margin-bottom:20px;
+    display:flex;align-items:center;gap:12px;
+    box-shadow:0 2px 12px rgba(0,0,0,.06);
+  }
+  .status-dot{width:10px;height:10px;border-radius:50%;background:var(--warn);flex-shrink:0;
+    transition:background .3s}
+  .status-dot.ok{background:var(--success);animation:sblink 3s infinite}
+  .status-dot.err{background:var(--danger)}
+  @keyframes sblink{0%,100%{opacity:1}50%{opacity:.4}}
+  .status-text-inner{font-size:.85rem;color:var(--muted2)}
+  .status-text-inner strong{color:var(--text)}
+
+  /* Translation display */
+  .translation-hero{
+    background:white;border-radius:20px;padding:32px;
+    box-shadow:0 4px 24px rgba(0,0,0,.07);
+    margin-bottom:20px;min-height:200px;
+    display:flex;flex-direction:column;
+  }
+  .th-lang{
+    font-family:'Syne',sans-serif;font-weight:700;font-size:.8rem;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);margin-bottom:16px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .th-lang::after{content:'';flex:1;height:1px;background:var(--border)}
+  .th-text{
+    font-size:1.7rem;line-height:1.5;font-weight:400;color:var(--text);
+    flex:1;display:flex;align-items:center;
+  }
+  .th-text.waiting{font-size:1.1rem;color:var(--muted);font-style:italic;align-items:center}
+  .th-text.incoming{animation:fadein .4s ease}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .speak-row{display:flex;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+  .speak-big{
+    flex:1;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:white;border:none;border-radius:12px;padding:14px;
+    font-family:'Syne',sans-serif;font-weight:700;font-size:.88rem;
+    cursor:pointer;transition:opacity .2s;
+  }
+  .speak-big:hover{opacity:.88}
+
+  /* Original text */
+  .original-card{background:white;border-radius:14px;padding:18px 20px;
+    box-shadow:0 2px 12px rgba(0,0,0,.05);margin-bottom:20px}
+  .orig-label{font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.08em;margin-bottom:6px}
+  .orig-text{font-size:.92rem;color:var(--muted2);line-height:1.6;font-style:italic}
+
+  /* Language change */
+  .lang-change{background:white;border-radius:14px;padding:16px 20px;
+    box-shadow:0 2px 12px rgba(0,0,0,.05);display:flex;align-items:center;gap:12px}
+  .lang-change label{font-size:.82rem;color:var(--muted2);white-space:nowrap;font-weight:500}
+  .lang-change select{flex:1;background:var(--bg);border:1.5px solid var(--border);
+    border-radius:9px;padding:9px 12px;color:var(--text);font-family:'DM Sans',sans-serif;
+    font-size:.88rem;outline:none;cursor:pointer}
+  .lang-change select:focus{border-color:var(--accent)}
+
+  .ts{font-size:.72rem;color:var(--muted);text-align:right;margin-top:6px}
+</style>
+</head>
+<body>
+
+<!-- ── JOIN SCREEN ──────────────────────────────────── -->
+<div id="join-screen">
+  <div class="join-card">
+    <div class="join-logo">🌐</div>
+    <h1>Meeting Translator</h1>
+    <p>Enter the room code your teacher shared with you, then choose your language.</p>
+
+    <div class="field">
+      <label>Room Code</label>
+      <input type="text" id="j-room" placeholder="e.g. SPRING-2026" maxlength="20"
+        oninput="this.value=this.value.toUpperCase()" />
+    </div>
+    <div class="field">
+      <label>Your Language</label>
+      <select id="j-lang">
+        <option value="">— Select your language —</option>
+        <option>Arabic</option><option>Somali</option><option>Dari</option>
+        <option>Tigrinya</option><option>Kurdish</option><option>Turkish</option>
+        <option>Polish</option><option>Spanish</option><option>French</option>
+        <option>German</option><option>Urdu</option><option>Hindi</option>
+        <option>Amharic</option><option>Farsi</option><option>Romanian</option>
+        <option>Albanian</option><option>Other / type below</option>
+      </select>
+    </div>
+    <div class="field" id="custom-lang-field" style="display:none">
+      <label>Type your language</label>
+      <input type="text" id="j-custom-lang" placeholder="e.g. Tigrinya" />
+    </div>
+
+    <details class="firebase-fields">
+      <summary>Firebase settings (first time only)</summary>
+      <div class="field"><label>Firebase API Key</label><input type="text" id="j-fb-key" placeholder="AIza..." /></div>
+      <div class="field"><label>Firebase Project ID</label><input type="text" id="j-fb-proj" placeholder="my-project-12345" /></div>
+    </details>
+
+    <button class="join-btn" onclick="joinRoom()">Join Meeting</button>
+    <div class="join-err" id="join-err"></div>
+  </div>
+</div>
+
+<!-- ── MAIN SCREEN ─────────────────────────────────── -->
+<div id="main-screen">
+  <div class="top-bar">
+    <div class="school-tag">🌐 IESV Translator</div>
+    <div class="room-tag" id="m-room-tag">—</div>
+    <button class="leave-btn" onclick="leaveRoom()">Leave</button>
+  </div>
+
+  <div class="content">
+    <div class="status-bar">
+      <div class="status-dot" id="status-dot"></div>
+      <div class="status-text-inner" id="status-text-inner">Connecting...</div>
+    </div>
+
+    <div class="translation-hero">
+      <div class="th-lang" id="th-lang">Your Language</div>
+      <div class="th-text waiting" id="th-text">Waiting for the teacher to speak...</div>
+      <div class="speak-row">
+        <button class="speak-big" onclick="speakCurrent()">🔊 Read aloud</button>
+      </div>
+    </div>
+
+    <div class="original-card">
+      <div class="orig-label">Original (teacher said)</div>
+      <div class="orig-text" id="orig-text">—</div>
+    </div>
+
+    <div class="lang-change">
+      <label>Change language:</label>
+      <select id="m-lang-select" onchange="changeLanguage()">
+        <option value="">— Select —</option>
+        <option>Arabic</option><option>Somali</option><option>Dari</option>
+        <option>Tigrinya</option><option>Kurdish</option><option>Turkish</option>
+        <option>Polish</option><option>Spanish</option><option>French</option>
+        <option>German</option><option>Urdu</option><option>Hindi</option>
+        <option>Amharic</option><option>Farsi</option><option>Romanian</option>
+        <option>Albanian</option>
+      </select>
+    </div>
+    <div class="ts" id="last-ts"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, onValue, set, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+let db=null, myLang='', myRoom='', connId='', unsubscribe=null;
+let currentTranslation='';
+
+// Restore firebase creds
+const FB_CONFIG={
+  apiKey:'AIzaSyAxu-jLi24nzfVr93CepVG6EZnY4t7aZ-o',
+  authDomain:'iesv-translator.firebaseapp.com',
+  databaseURL:'https://iesv-translator-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId:'iesv-translator',
+  appId:'1:877155393473:web:13622664b9563976ac9940'
+};
+window.addEventListener('load',()=>{
+  // Pre-fill with hardcoded config
+  document.getElementById('j-fb-key').value=FB_CONFIG.apiKey;
+  document.getElementById('j-fb-proj').value=FB_CONFIG.projectId;
+
+  // Show/hide custom lang field
+  document.getElementById('j-lang').addEventListener('change',function(){
+    document.getElementById('custom-lang-field').style.display=
+      this.value==='Other / type below'?'block':'none';
+  });
+});
+
+window.joinRoom=async function(){
+  const room=document.getElementById('j-room').value.trim().toUpperCase();
+  const langSel=document.getElementById('j-lang').value;
+  const langCustom=document.getElementById('j-custom-lang').value.trim();
+  const lang=langSel==='Other / type below'?langCustom:langSel;
+  const fbKey=document.getElementById('j-fb-key').value.trim()||localStorage.getItem('iesv_fb-api-key');
+  const fbProj=document.getElementById('j-fb-proj').value.trim()||localStorage.getItem('iesv_fb-project');
+
+  const err=document.getElementById('join-err');
+  if(!room){err.textContent='Please enter a room code.';return;}
+  if(!lang){err.textContent='Please select your language.';return;}
+  if(!fbKey||!fbProj){err.textContent='Firebase settings needed — expand the settings section.';return;}
+
+  err.textContent='';
+  localStorage.setItem('iesv_fb-api-key',fbKey);
+  localStorage.setItem('iesv_fb-project',fbProj);
+
+  try{
+    const app=initializeApp({...FB_CONFIG},'iesv-p-'+Date.now());
+    db=getDatabase(app);
+
+    // Register connection
+    connId='p-'+Math.random().toString(36).slice(2,8);
+    myRoom=room;myLang=lang;
+
+    await set(ref(db,`rooms/${room}/connections/${connId}`),{lang,joined:Date.now()});
+
+    // Watch latest translation
+    onValue(ref(db,`rooms/${room}/latest`),snap=>{
+      if(!snap.exists())return;
+      const data=snap.val();
+      handleUpdate(data);
+    });
+
+    // Switch screens
+    document.getElementById('join-screen').style.display='none';
+    document.getElementById('main-screen').style.display='block';
+    document.getElementById('m-room-tag').textContent=room;
+    document.getElementById('th-lang').textContent=lang;
+    document.getElementById('m-lang-select').value=lang;
+    setStatus('ok','Connected — waiting for teacher');
+
+    // Cleanup on close
+    window.addEventListener('beforeunload',()=>{
+      if(db)set(ref(db,`rooms/${room}/connections/${connId}`),null);
+    });
+
+  }catch(e){
+    document.getElementById('join-err').textContent='Connection failed: '+e.message;
+  }
+};
+
+function handleUpdate(data){
+  if(!data.text||!data.translations)return;
+  const translation=data.translations[myLang];
+  if(!translation){
+    // Language not translated this round — show a note
+    setStatus('warn',`"${myLang}" wasn't in this translation batch. Ask the teacher to add it.`);
+    return;
+  }
+  currentTranslation=translation;
+  const textEl=document.getElementById('th-text');
+  textEl.textContent=translation;
+  textEl.className='th-text incoming';
+  setTimeout(()=>textEl.classList.remove('incoming'),500);
+  document.getElementById('orig-text').textContent=data.text;
+  const ago=new Date(data.ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('last-ts').textContent='Last updated '+ago;
+  setStatus('ok','Connected — live');
+}
+
+function setStatus(type,msg){
+  const dot=document.getElementById('status-dot');
+  const text=document.getElementById('status-text-inner');
+  dot.className='status-dot'+(type==='ok'?' ok':type==='err'?' err':'');
+  text.innerHTML=msg;
+}
+
+window.speakCurrent=function(){
+  if(!currentTranslation)return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(currentTranslation);
+  window.speechSynthesis.speak(u);
+};
+
+window.changeLanguage=function(){
+  const sel=document.getElementById('m-lang-select').value;
+  if(!sel)return;
+  myLang=sel;
+  document.getElementById('th-lang').textContent=sel;
+  document.getElementById('th-text').textContent='Waiting for next phrase in '+sel+'...';
+  document.getElementById('th-text').className='th-text waiting';
+};
+
+window.leaveRoom=function(){
+  if(db&&myRoom&&connId)set(ref(db,`rooms/${myRoom}/connections/${connId}`),null);
+  document.getElementById('main-screen').style.display='none';
+  document.getElementById('join-screen').style.display='flex';
+};
+</script>
+</body>
+</html>
