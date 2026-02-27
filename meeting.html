@@ -972,11 +972,15 @@ window.confirmEnd = function() {
   if (historyItems.length === 0) { forceEnd(); return; }
   document.getElementById('exit-modal-msg').textContent =
     `You have ${historyItems.length} item${historyItems.length===1?'':'s'} in the session history. Download the transcript before ending?`;
-  document.getElementById('exit-modal').classList.add('open');
+  const modal = document.getElementById('exit-modal');
+  modal.style.display = '';
+  modal.classList.add('open');
 };
 window.closeModal = function() {
-  document.getElementById('exit-modal').classList.remove('open');
-  document.getElementById('expire-modal').classList.remove('open');
+  ['exit-modal','expire-modal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.remove('open'); el.style.display = 'none'; }
+  });
 };
 window.downloadThenEnd = function() {
   downloadTranscript();
@@ -994,8 +998,12 @@ function doEndMeeting() {
   document.getElementById('disclaimer-check').checked = false;
   window.toggleStartBtn();
   speakers.forEach(sp => { if (sp.recognition) try { sp.recognition.stop(); } catch(e) {} });
-  document.getElementById('meeting-screen').style.display = 'none';
-  document.getElementById('setup-screen').style.display = 'block';
+  const ms = document.getElementById('meeting-screen');
+  const ss = document.getElementById('setup-screen');
+  ms.style.display = 'none';
+  ms.style.visibility = 'hidden';
+  ss.style.display = 'block';
+  ss.style.visibility = 'visible';
   window.scrollTo(0, 0);
   document.getElementById('room-chip').style.display = 'none';
   document.getElementById('conn-pill').style.display = 'none';
