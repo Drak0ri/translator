@@ -126,16 +126,26 @@
     <h1>Live Translator</h1>
   </div>
   <div style="display:flex;align-items:center;gap:16px">
-    <a href="meeting.html" style="font-size:.78rem;color:var(--muted2);text-decoration:none;
-      border:1px solid var(--border);padding:6px 12px;border-radius:8px;transition:all .2s"
-      onmouseover="this.style.color='var(--accent2)'" onmouseout="this.style.color='var(--muted2)'">
-      ⇄ Meeting mode
-    </a>
+
     <div class="conn-count"><div class="dot"></div><span id="conn-count">0 listeners connected</span></div>
     <div class="room-display" id="room-display">No room</div>
   </div>
 </header>
 
+<div style="position:relative;z-index:1;text-align:center;padding:14px 24px 0">
+  <a href="meeting.html" style="
+    display:inline-flex;align-items:center;gap:8px;
+    background:linear-gradient(135deg,rgba(37,99,235,.2),rgba(14,165,233,.15));
+    border:1px solid rgba(14,165,233,.35);border-radius:12px;
+    padding:10px 24px;text-decoration:none;
+    font-family:'Syne',sans-serif;font-weight:700;font-size:.82rem;
+    color:white;letter-spacing:.03em;
+    transition:all .2s;backdrop-filter:blur(8px);"
+    onmouseover="this.style.background='linear-gradient(135deg,rgba(37,99,235,.35),rgba(14,165,233,.28))';this.style.borderColor='rgba(14,165,233,.6)'"
+    onmouseout="this.style.background='linear-gradient(135deg,rgba(37,99,235,.2),rgba(14,165,233,.15))';this.style.borderColor='rgba(14,165,233,.35)'">
+    ⇄ <span>Switch to Meeting Mode</span>
+  </a>
+</div>
 <div class="main">
 
   <!-- SETUP -->
@@ -320,8 +330,9 @@ window.addEventListener('load', () => {
   });
   document.getElementById('key-ollama').value = localStorage.getItem('iesv_key_ollama') || 'http://localhost:11434';
   document.getElementById('ollama-model').value = localStorage.getItem('iesv_ollama_model') || 'qwen2.5:7b';
-  const savedRoom = localStorage.getItem('iesv_room-code') || 'A11';
-  if (savedRoom) document.getElementById('room-code').value = savedRoom;
+  const savedRoom = localStorage.getItem('iesv_room-code') || '';
+  const cleanRoom = (savedRoom && !savedRoom.includes('@') && !savedRoom.includes('.')) ? savedRoom : 'A11';
+  document.getElementById('room-code').value = cleanRoom;
   const savedProvider = localStorage.getItem('iesv_provider');
   if (savedProvider) window.setProvider(savedProvider);
   renderChips();
