@@ -690,6 +690,22 @@ window.startMeeting = async function() {
 
     buildMeetingUI();
     applyProjectorMode();
+    warmUpMic();
+    // After warmup period, signal buttons are ready
+    setTimeout(() => {
+      speakers.forEach(sp => {
+        const lbl = document.getElementById('ptt-label-' + sp.id);
+        if (lbl && lbl.textContent === 'Hold to speak') {
+          lbl.textContent = '✓ Ready — hold to speak';
+          const btn = document.getElementById('ptt-' + sp.id);
+          if (btn) btn.style.borderColor = 'var(--success)';
+          setTimeout(() => {
+            if (btn) btn.style.borderColor = '';
+            if (lbl) lbl.textContent = 'Hold to speak';
+          }, 2000);
+        }
+      });
+    }, speakers.length * 400 + 500);
   } catch(e) { setSetupStatus('Firebase error: ' + e.message, 'err'); }
 };
 
@@ -716,7 +732,7 @@ function buildMeetingUI() {
         ontouchstart="startPTT('${sp.id}')" ontouchend="stopPTT('${sp.id}')"
         onmouseleave="stopPTT('${sp.id}')">
         <span class="ptt-icon">🎤</span>
-        <span id="ptt-label-${sp.id}">Hold to speak</span>
+        <span id="ptt-label-${sp.id}">Warming up mic...</span>
       </button>
     `;
     area.appendChild(panel);
@@ -749,6 +765,12 @@ function getAllLangs() {
 window.startPTT = function(id) {
   const sp = speakers.find(s => s.id === id);
   if (!sp || sp.isRecording) return;
+  const lbl = document.getElementById('ptt-label-' + id);
+  if (lbl && lbl.textContent === 'Warming up mic...') {
+    lbl.textContent = 'Almost ready — try again in a moment';
+    setTimeout(() => { if (lbl.textContent.includes('Almost')) lbl.textContent = 'Warming up mic...'; }, 1500);
+    return;
+  }
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { alert('Use Chrome for speech recognition.'); return; }
@@ -879,6 +901,32 @@ function addHistory(sp, text, idx, translations) {
 }
 
 // Projector is always on — apply on build
+
+// ── Mic warmup ─────────────────────────────────────────
+// Starts and immediately stops a recognition session for each speaker language.
+// This triggers the browser mic permission prompt and warms up the Google SR
+// connection so the first real PTT press responds instantly.
+function warmUpMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  // Dedupe languages — no need to warm up the same lang twice
+  const langs = [...new Set(speakers.map(s => s.langCode))];
+  langs.forEach((lang, i) => {
+    setTimeout(() => {
+      try {
+        const r = new SR();
+        r.lang = lang;
+        r.continuous = false;
+        r.interimResults = false;
+        r.onstart = () => { setTimeout(() => { try { r.stop(); } catch(e) {} }, 300); };
+        r.onerror = () => {};
+        r.onend = () => {};
+        r.start();
+      } catch(e) {}
+    }, i * 400); // stagger slightly so they don't all fire at once
+  });
+}
+
 function applyProjectorMode() {
   document.getElementById('display-area').classList.add('projector-mode');
   document.getElementById('speakers-wrap').classList.add('projector-mode-wrap');
