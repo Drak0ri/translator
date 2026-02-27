@@ -32,8 +32,6 @@
   .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px}
   .card-title{font-family:'Syne',sans-serif;font-size:.75rem;font-weight:700;text-transform:uppercase;
     letter-spacing:.1em;color:var(--muted2);margin-bottom:14px}
-  .setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  @media(max-width:600px){.setup-grid{grid-template-columns:1fr}}
   label{display:block;font-size:.78rem;color:var(--muted2);margin-bottom:6px}
   input,select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;
     padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;transition:border-color .2s}
@@ -51,6 +49,29 @@
   .spill.ok{background:rgba(16,185,129,.1);color:var(--success);border:1px solid rgba(16,185,129,.2)}
   .spill.warn{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.2)}
   .spill.err{background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.2)}
+
+  /* Provider tabs */
+  .provider-tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+  .ptab{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:8px 16px;font-size:.82rem;cursor:pointer;transition:all .15s;
+    font-family:'Syne',sans-serif;font-weight:700;color:var(--muted2);user-select:none}
+  .ptab:hover{border-color:var(--accent2);color:var(--text)}
+  .ptab.active{background:rgba(37,99,235,.12);border-color:var(--accent);color:#93c5fd}
+  .pill{font-size:.65rem;padding:2px 6px;border-radius:4px;margin-left:5px;
+    background:rgba(16,185,129,.15);color:var(--success);vertical-align:middle;font-weight:600}
+  .pill.paid{background:rgba(245,158,11,.1);color:var(--warn)}
+
+  /* Provider fields */
+  .provider-field{display:none}
+  .provider-field.active{display:block}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  @media(max-width:580px){.field-row{grid-template-columns:1fr}}
+  .field-single{margin-bottom:14px}
+  .hint{font-size:.74rem;color:var(--muted);margin-top:5px;line-height:1.5}
+  .hint a{color:var(--accent2);text-decoration:none}.hint a:hover{text-decoration:underline}
+  code{font-family:'DM Mono',monospace;font-size:.82em;color:var(--accent2)}
+
+  /* Mic */
   .mic-area{display:flex;flex-direction:column;align-items:center;gap:18px;padding:10px 0}
   .lang-row{display:flex;align-items:center;gap:10px}
   .lang-row label{margin:0;font-size:.83rem;color:var(--muted2);white-space:nowrap}
@@ -66,6 +87,8 @@
   .transcript-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;
     padding:14px 16px;font-size:.92rem;line-height:1.7;min-height:56px;color:var(--text);width:100%}
   .transcript-box.empty{color:var(--muted);font-style:italic}
+
+  /* Chips */
   .chip-grid{display:flex;flex-wrap:wrap;gap:7px}
   .chip{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 13px;
     font-size:.82rem;cursor:pointer;transition:all .15s;user-select:none}
@@ -73,9 +96,11 @@
   .chip.on{background:rgba(37,99,235,.12);border-color:var(--accent);color:#93c5fd}
   .add-lang-row{display:flex;gap:8px;margin-top:10px}
   .add-lang-row input{flex:1}
+
+  /* Trans preview */
   .trans-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
   .trans-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;
-    position:relative;overflow:hidden;transition:border-color .3s}
+    position:relative;overflow:hidden}
   .trans-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;
     background:linear-gradient(90deg,var(--accent),var(--accent2));transform:scaleX(0);
     transition:transform .4s;transform-origin:left}
@@ -83,6 +108,8 @@
   .tl{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--accent2);margin-bottom:6px;text-transform:uppercase}
   .tt{font-size:.88rem;line-height:1.6;color:var(--text);min-height:36px}
   .tt.loading{color:var(--muted);font-style:italic}
+
+  /* History */
   .history{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
   .hi{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 13px}
   .hi-meta{font-size:.72rem;color:var(--muted);margin-bottom:3px}
@@ -104,32 +131,74 @@
 </header>
 
 <div class="main">
+
+  <!-- SETUP -->
   <div class="card">
-    <div class="card-title">Setup — enter once, saved locally</div>
-    <div class="setup-grid">
-      <div>
+    <div class="card-title">Setup — keys saved locally to this device only</div>
+
+    <div class="provider-tabs">
+      <div class="ptab active" onclick="setProvider('anthropic')">Claude <span class="pill paid">paid</span></div>
+      <div class="ptab" onclick="setProvider('openai')">GPT-4o <span class="pill paid">paid</span></div>
+      <div class="ptab" onclick="setProvider('gemini')">Gemini <span class="pill paid">paid</span></div>
+      <div class="ptab" onclick="setProvider('ollama')">Ollama <span class="pill">free · local</span></div>
+    </div>
+
+    <!-- Claude -->
+    <div class="provider-field active" id="pf-anthropic">
+      <div class="field-single">
         <label>Anthropic API Key</label>
-        <input type="password" id="api-key" placeholder="sk-ant-..." />
-      </div>
-      <div>
-        <label>Room Code (share with parents)</label>
-        <input type="text" id="room-code" placeholder="e.g. SPRING-2026" maxlength="20" />
-      </div>
-      <div>
-        <label>Firebase API Key</label>
-        <input type="text" id="fb-api-key" placeholder="AIza..." />
-      </div>
-      <div>
-        <label>Firebase Project ID</label>
-        <input type="text" id="fb-project" placeholder="my-project-12345" />
+        <input type="password" id="key-anthropic" placeholder="sk-ant-..." />
+        <div class="hint">Get at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys. ~$0.75 per 30-min meeting.</div>
       </div>
     </div>
+
+    <!-- OpenAI -->
+    <div class="provider-field" id="pf-openai">
+      <div class="field-single">
+        <label>OpenAI API Key</label>
+        <input type="password" id="key-openai" placeholder="sk-..." />
+        <div class="hint">Get at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a> → API Keys. Uses gpt-4o-mini.</div>
+      </div>
+    </div>
+
+    <!-- Gemini -->
+    <div class="provider-field" id="pf-gemini">
+      <div class="field-single">
+        <label>Google Gemini API Key</label>
+        <input type="password" id="key-gemini" placeholder="AIzaSy..." />
+        <div class="hint">Get at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>. Uses gemini-1.5-flash — has a free tier.</div>
+      </div>
+    </div>
+
+    <!-- Ollama -->
+    <div class="provider-field" id="pf-ollama">
+      <div class="field-row">
+        <div>
+          <label>Ollama Server URL</label>
+          <input type="text" id="key-ollama" placeholder="http://localhost:11434" />
+          <div class="hint">Localhost if running on this machine. Use a Cloudflare Tunnel URL if Ollama is on another PC on the school network.</div>
+        </div>
+        <div>
+          <label>Model</label>
+          <input type="text" id="ollama-model" placeholder="qwen2.5:7b" />
+          <div class="hint">Recommended for GTX 1070: <code>qwen2.5:7b</code>. First run <code>ollama pull qwen2.5:7b</code> on the server PC.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field-single">
+      <label>Room Code <span style="color:var(--muted);font-weight:400;font-size:.75rem">— share this with parents before the meeting</span></label>
+      <input type="text" id="room-code" placeholder="e.g. SPRING-2026" maxlength="20"
+        oninput="this.value=this.value.toUpperCase()" />
+    </div>
+
     <div class="btn-row">
       <button class="btn" onclick="connectRoom()">Connect to Room</button>
       <span id="setup-status"></span>
     </div>
   </div>
 
+  <!-- MIC -->
   <div class="card">
     <div class="card-title">Speak &amp; Translate</div>
     <div class="mic-area">
@@ -146,6 +215,7 @@
     </div>
   </div>
 
+  <!-- LANGUAGES -->
   <div class="card">
     <div class="card-title">Target Languages</div>
     <div class="chip-grid" id="chip-grid"></div>
@@ -155,11 +225,13 @@
     </div>
   </div>
 
+  <!-- PREVIEW -->
   <div class="card" id="trans-section" style="display:none">
     <div class="card-title">Live Translation Preview</div>
     <div class="trans-grid" id="trans-grid"></div>
   </div>
 
+  <!-- HISTORY -->
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div class="card-title" style="margin:0">Session History</div>
@@ -173,180 +245,286 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-let db=null, connected=false, roomCode='';
-let isListening=false, recognition=null;
-let selectedLangs=new Set();
-let historyItems=[];
-
-const PRESETS=['Arabic','Somali','Dari','Tigrinya','Kurdish','Turkish','Polish','Spanish','French','German','Urdu','Hindi','Amharic','Farsi','Romanian','Albanian'];
-
-const FB_CONFIG={
-  apiKey:'AIzaSyAxu-jLi24nzfVr93CepVG6EZnY4t7aZ-o',
-  authDomain:'iesv-translator.firebaseapp.com',
-  databaseURL:'https://iesv-translator-default-rtdb.europe-west1.firebasedatabase.app',
-  projectId:'iesv-translator',
-  appId:'1:877155393473:web:13622664b9563976ac9940'
+const FB_CONFIG = {
+  apiKey:      'AIzaSyAxu-jLi24nzfVr93CepVG6EZnY4t7aZ-o',
+  authDomain:  'iesv-translator.firebaseapp.com',
+  databaseURL: 'https://iesv-translator-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId:   'iesv-translator',
+  appId:       '1:877155393473:web:13622664b9563976ac9940'
 };
-window.addEventListener('load',()=>{
-  document.getElementById('fb-api-key').value=FB_CONFIG.apiKey;
-  document.getElementById('fb-project').value=FB_CONFIG.projectId;
-  ['api-key','room-code'].forEach(id=>{
-    const v=localStorage.getItem('iesv_'+id);
-    if(v) document.getElementById(id).value=v;
+
+let db = null, connected = false, roomCode = '';
+let isListening = false, recognition = null;
+let selectedLangs = new Set();
+let historyItems = [];
+let currentProvider = 'anthropic';
+
+const PRESETS = ['Arabic','Somali','Dari','Tigrinya','Kurdish','Turkish','Polish',
+  'Spanish','French','German','Urdu','Hindi','Amharic','Farsi','Romanian','Albanian'];
+
+// ── Provider switcher ──────────────────────────────────
+window.setProvider = function(p) {
+  currentProvider = p;
+  document.querySelectorAll('.ptab').forEach((t, i) => {
+    t.classList.toggle('active', ['anthropic','openai','gemini','ollama'][i] === p);
   });
+  document.querySelectorAll('.provider-field').forEach(f => f.classList.remove('active'));
+  document.getElementById('pf-' + p).classList.add('active');
+  localStorage.setItem('iesv_provider', p);
+};
+
+// ── Init ───────────────────────────────────────────────
+window.addEventListener('load', () => {
+  ['anthropic','openai','gemini'].forEach(p => {
+    const v = localStorage.getItem('iesv_key_' + p);
+    if (v) document.getElementById('key-' + p).value = v;
+  });
+  document.getElementById('key-ollama').value = localStorage.getItem('iesv_key_ollama') || 'http://localhost:11434';
+  document.getElementById('ollama-model').value = localStorage.getItem('iesv_ollama_model') || 'qwen2.5:7b';
+  const savedRoom = localStorage.getItem('iesv_room-code');
+  if (savedRoom) document.getElementById('room-code').value = savedRoom;
+  const savedProvider = localStorage.getItem('iesv_provider');
+  if (savedProvider) window.setProvider(savedProvider);
   renderChips();
 });
 
-window.connectRoom=async function(){
-  const apiKey=document.getElementById('api-key').value.trim();
-  roomCode=document.getElementById('room-code').value.trim().toUpperCase();
-  const fbKey=document.getElementById('fb-api-key').value.trim();
-  const fbProj=document.getElementById('fb-project').value.trim();
-  if(!apiKey||!roomCode||!fbKey||!fbProj){setStatus('Fill in all fields','err');return;}
-  ['api-key','room-code','fb-api-key','fb-project'].forEach(id=>localStorage.setItem('iesv_'+id,document.getElementById(id).value.trim()));
-  setStatus('Connecting...','warn');
-  try{
-    const app=initializeApp({...FB_CONFIG},'iesv-t-'+Date.now());
-    db=getDatabase(app);
-    onValue(ref(db,`rooms/${roomCode}/connections`),snap=>{
-      const n=snap.exists()?Object.keys(snap.val()).length:0;
-      document.getElementById('conn-count').textContent=`${n} parent${n===1?'':'s'} connected`;
+// ── Connect ────────────────────────────────────────────
+window.connectRoom = async function() {
+  roomCode = document.getElementById('room-code').value.trim().toUpperCase();
+  if (!roomCode) { setStatus('Enter a room code', 'err'); return; }
+  const key = getKey();
+  if (!key && currentProvider !== 'ollama') { setStatus('Enter an API key', 'err'); return; }
+
+  // Save keys
+  localStorage.setItem('iesv_room-code', roomCode);
+  ['anthropic','openai','gemini'].forEach(p => {
+    const v = document.getElementById('key-' + p).value.trim();
+    if (v) localStorage.setItem('iesv_key_' + p, v);
+  });
+  localStorage.setItem('iesv_key_ollama', document.getElementById('key-ollama').value.trim());
+  localStorage.setItem('iesv_ollama_model', document.getElementById('ollama-model').value.trim());
+
+  setStatus('Connecting...', 'warn');
+  try {
+    const app = initializeApp({...FB_CONFIG}, 'iesv-t-' + Date.now());
+    db = getDatabase(app);
+    onValue(ref(db, `rooms/${roomCode}/connections`), snap => {
+      const n = snap.exists() ? Object.keys(snap.val()).length : 0;
+      document.getElementById('conn-count').textContent = `${n} parent${n===1?'':'s'} connected`;
     });
-    await set(ref(db,`rooms/${roomCode}/active`),true);
-    await set(ref(db,`rooms/${roomCode}/latest`),{text:'',translations:{},ts:Date.now(),langs:[]});
-    connected=true;
-    document.getElementById('room-display').textContent=roomCode;
-    setStatus('✓ Room '+roomCode+' ready','ok');
-    document.getElementById('mic-label').textContent='Press mic to start speaking';
-  }catch(e){setStatus('Firebase error: '+e.message,'err');}
+    await set(ref(db, `rooms/${roomCode}/active`), true);
+    await set(ref(db, `rooms/${roomCode}/latest`), {text:'',translations:{},ts:Date.now(),langs:[]});
+    connected = true;
+    document.getElementById('room-display').textContent = roomCode;
+    setStatus(`✓ Room ${roomCode} · ${providerLabel()}`, 'ok');
+    document.getElementById('mic-label').textContent = 'Press mic to start speaking';
+  } catch(e) { setStatus('Firebase error: ' + e.message, 'err'); }
 };
 
-function setStatus(msg,type){
-  document.getElementById('setup-status').innerHTML=`<span class="spill ${type}">${msg}</span>`;
+function providerLabel() {
+  return {anthropic:'Claude',openai:'GPT-4o-mini',gemini:'Gemini Flash',ollama:'Ollama (local)'}[currentProvider];
 }
 
-function renderChips(){
-  const g=document.getElementById('chip-grid');g.innerHTML='';
-  PRESETS.forEach(lang=>{
-    const c=document.createElement('div');
-    c.className='chip'+(selectedLangs.has(lang)?' on':'');
-    c.textContent=lang;c.onclick=()=>toggleLang(lang);g.appendChild(c);
+function getKey() {
+  if (currentProvider === 'ollama') return document.getElementById('key-ollama').value.trim() || 'http://localhost:11434';
+  return document.getElementById('key-' + currentProvider).value.trim() ||
+         localStorage.getItem('iesv_key_' + currentProvider) || '';
+}
+
+function setStatus(msg, type) {
+  document.getElementById('setup-status').innerHTML = `<span class="spill ${type}">${msg}</span>`;
+}
+
+// ── Language chips ─────────────────────────────────────
+function renderChips() {
+  const g = document.getElementById('chip-grid'); g.innerHTML = '';
+  PRESETS.forEach(lang => {
+    const c = document.createElement('div');
+    c.className = 'chip' + (selectedLangs.has(lang) ? ' on' : '');
+    c.textContent = lang; c.onclick = () => toggleLang(lang); g.appendChild(c);
   });
 }
-function toggleLang(lang){selectedLangs.has(lang)?selectedLangs.delete(lang):selectedLangs.add(lang);renderChips();renderTransCards();}
-window.addLang=function(){
-  const input=document.getElementById('custom-lang');const lang=input.value.trim();if(!lang)return;
-  if(!PRESETS.includes(lang))PRESETS.push(lang);selectedLangs.add(lang);input.value='';renderChips();renderTransCards();
+function toggleLang(lang) {
+  selectedLangs.has(lang) ? selectedLangs.delete(lang) : selectedLangs.add(lang);
+  renderChips(); renderTransCards();
+}
+window.addLang = function() {
+  const input = document.getElementById('custom-lang');
+  const lang = input.value.trim(); if (!lang) return;
+  if (!PRESETS.includes(lang)) PRESETS.push(lang);
+  selectedLangs.add(lang); input.value = ''; renderChips(); renderTransCards();
 };
-function slugify(s){return s.replace(/\s+/g,'-');}
-function renderTransCards(){
-  const sec=document.getElementById('trans-section'),grid=document.getElementById('trans-grid');
-  if(selectedLangs.size===0){sec.style.display='none';return;}
-  sec.style.display='block';
-  [...grid.children].forEach(c=>{if(!selectedLangs.has(c.dataset.lang))c.remove();});
-  selectedLangs.forEach(lang=>{
-    if(!grid.querySelector(`[data-lang="${lang}"]`)){
-      const card=document.createElement('div');card.className='trans-card';card.dataset.lang=lang;
-      card.innerHTML=`<div class="tl">${lang}</div><div class="tt" id="tt-${slugify(lang)}">—</div>`;
+function slugify(s) { return s.replace(/[\s()]/g,'-'); }
+function renderTransCards() {
+  const sec = document.getElementById('trans-section'), grid = document.getElementById('trans-grid');
+  if (selectedLangs.size === 0) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  [...grid.children].forEach(c => { if (!selectedLangs.has(c.dataset.lang)) c.remove(); });
+  selectedLangs.forEach(lang => {
+    if (!grid.querySelector(`[data-lang="${lang}"]`)) {
+      const card = document.createElement('div'); card.className = 'trans-card'; card.dataset.lang = lang;
+      card.innerHTML = `<div class="tl">${lang}</div><div class="tt" id="tt-${slugify(lang)}">—</div>`;
       grid.appendChild(card);
     }
   });
 }
 
-window.toggleMic=function(){
-  if(!connected){alert('Connect to a room first.');return;}
-  if(selectedLangs.size===0){alert('Select at least one language.');return;}
-  isListening?stopMic():startMic();
+// ── Mic ────────────────────────────────────────────────
+window.toggleMic = function() {
+  if (!connected) { alert('Connect to a room first.'); return; }
+  if (selectedLangs.size === 0) { alert('Select at least one language.'); return; }
+  isListening ? stopMic() : startMic();
 };
-function startMic(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){setMicLabel('Use Chrome for speech recognition','err');return;}
-  const lang=document.getElementById('input-lang').value;
-  recognition=new SR();recognition.continuous=true;recognition.interimResults=true;recognition.lang=lang;
-  recognition.onstart=()=>{
-    isListening=true;
-    document.getElementById('mic-btn').className='mic-btn listening';
-    document.getElementById('mic-btn').textContent='⏹';
-    setMicLabel('Listening... speak now','active');
+function startMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setMicLabel('Use Chrome for speech recognition', 'err'); return; }
+  const lang = document.getElementById('input-lang').value;
+  recognition = new SR(); recognition.continuous = true; recognition.interimResults = true; recognition.lang = lang;
+  recognition.onstart = () => {
+    isListening = true;
+    document.getElementById('mic-btn').className = 'mic-btn listening';
+    document.getElementById('mic-btn').textContent = '⏹';
+    setMicLabel('Listening... speak now', 'active');
   };
-  let debounce=null;
-  recognition.onresult=e=>{
-    let interim='',final='';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      if(e.results[i].isFinal)final+=e.results[i][0].transcript;
-      else interim+=e.results[i][0].transcript;
+  let debounce = null;
+  recognition.onresult = e => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
     }
-    const box=document.getElementById('transcript');
-    box.classList.remove('empty');box.textContent=final||interim;
-    if(final.trim().length>3){clearTimeout(debounce);debounce=setTimeout(()=>translateAndPush(final.trim()),400);}
+    const box = document.getElementById('transcript');
+    box.classList.remove('empty'); box.textContent = final || interim;
+    if (final.trim().length > 3) {
+      clearTimeout(debounce); debounce = setTimeout(() => translateAndPush(final.trim()), 400);
+    }
   };
-  recognition.onerror=e=>{setMicLabel('Error: '+e.error,'err');stopMic();};
-  recognition.onend=()=>{if(isListening)recognition.start();};
+  recognition.onerror = e => { setMicLabel('Error: ' + e.error, 'err'); stopMic(); };
+  recognition.onend = () => { if (isListening) recognition.start(); };
   recognition.start();
 }
-function stopMic(){
-  isListening=false;if(recognition)recognition.stop();
-  document.getElementById('mic-btn').className='mic-btn';
-  document.getElementById('mic-btn').textContent='🎤';
+function stopMic() {
+  isListening = false; if (recognition) recognition.stop();
+  document.getElementById('mic-btn').className = 'mic-btn';
+  document.getElementById('mic-btn').textContent = '🎤';
   setMicLabel('Press mic to start speaking');
 }
-function setMicLabel(msg,type=''){
-  const el=document.getElementById('mic-label');el.textContent=msg;
-  el.className='mic-label'+(type?' '+type:'');
+function setMicLabel(msg, type = '') {
+  const el = document.getElementById('mic-label'); el.textContent = msg;
+  el.className = 'mic-label' + (type ? ' ' + type : '');
 }
 
-async function translateAndPush(text){
-  if(!text||selectedLangs.size===0)return;
-  const apiKey=localStorage.getItem('iesv_api-key');
-  const langList=[...selectedLangs].join(', ');
-  const srcLang=document.getElementById('input-lang').value==='sv-SE'?'Swedish':'English';
-  document.getElementById('mic-btn').className='mic-btn processing';
-  setMicLabel('Translating...','active');
-  selectedLangs.forEach(lang=>{
-    const el=document.getElementById('tt-'+slugify(lang));
-    if(el){el.textContent='Translating...';el.className='tt loading';}
+// ── Translation ────────────────────────────────────────
+async function translateAndPush(text) {
+  if (!text || selectedLangs.size === 0) return;
+  const langList = [...selectedLangs].join(', ');
+  const srcLang = document.getElementById('input-lang').value === 'sv-SE' ? 'Swedish' : 'English';
+  const prompt = `Translate this ${srcLang} text into these languages: ${langList}\nReturn ONLY valid JSON, language names as keys, translations as values. No markdown.\n\nText: "${text}"`;
+
+  document.getElementById('mic-btn').className = 'mic-btn processing';
+  setMicLabel('Translating...', 'active');
+  selectedLangs.forEach(lang => {
+    const el = document.getElementById('tt-' + slugify(lang));
+    if (el) { el.textContent = 'Translating...'; el.className = 'tt loading'; }
   });
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,
-        'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1200,
-        messages:[{role:'user',content:`Translate this ${srcLang} into these languages: ${langList}\nReturn ONLY valid JSON, keys=language names, values=translations. No markdown.\n\nText: "${text}"`}]})
+
+  try {
+    let translations;
+    if      (currentProvider === 'anthropic') translations = await callAnthropic(prompt);
+    else if (currentProvider === 'openai')    translations = await callOpenAI(prompt);
+    else if (currentProvider === 'gemini')    translations = await callGemini(prompt);
+    else if (currentProvider === 'ollama')    translations = await callOllama(prompt);
+
+    selectedLangs.forEach(lang => {
+      const el = document.getElementById('tt-' + slugify(lang));
+      const card = el?.closest('.trans-card');
+      if (el && translations[lang]) {
+        el.textContent = translations[lang]; el.className = 'tt';
+        card?.classList.add('flash'); setTimeout(() => card?.classList.remove('flash'), 1500);
+      }
     });
-    const data=await res.json();
-    if(data.error)throw new Error(data.error.message);
-    const match=data.content[0].text.trim().match(/\{[\s\S]*\}/);
-    if(!match)throw new Error('Bad response');
-    const translations=JSON.parse(match[0]);
-    selectedLangs.forEach(lang=>{
-      const el=document.getElementById('tt-'+slugify(lang));
-      const card=el?.closest('.trans-card');
-      if(el&&translations[lang]){el.textContent=translations[lang];el.className='tt';
-        card?.classList.add('flash');setTimeout(()=>card?.classList.remove('flash'),1500);}
-    });
-    if(db){
-      await set(ref(db,`rooms/${roomCode}/latest`),{text,translations,ts:Date.now(),langs:[...selectedLangs]});
-    }
+    if (db) await set(ref(db, `rooms/${roomCode}/latest`), {text, translations, ts: Date.now(), langs: [...selectedLangs]});
     addHistory(text);
-    setMicLabel('Translated — ready for next phrase','active');
-  }catch(e){
-    setMicLabel('Error: '+e.message,'err');
-    selectedLangs.forEach(lang=>{const el=document.getElementById('tt-'+slugify(lang));if(el){el.textContent='Error';el.className='tt loading';}});
+    setMicLabel('Translated — ready for next phrase', 'active');
+  } catch(e) {
+    setMicLabel('Error: ' + e.message, 'err');
+    selectedLangs.forEach(lang => {
+      const el = document.getElementById('tt-' + slugify(lang));
+      if (el) { el.textContent = 'Error'; el.className = 'tt loading'; }
+    });
   }
-  setTimeout(()=>{document.getElementById('mic-btn').className=isListening?'mic-btn listening':'mic-btn';},1000);
+  setTimeout(() => {
+    document.getElementById('mic-btn').className = isListening ? 'mic-btn listening' : 'mic-btn';
+  }, 1000);
 }
 
-function addHistory(text){
-  const time=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-  historyItems.unshift({time,text});
-  const list=document.getElementById('history');
-  if(historyItems.length===1)list.innerHTML='';
-  const item=document.createElement('div');item.className='hi';
-  item.innerHTML=`<div class="hi-meta">${time}</div><div class="hi-text">${text}</div>`;
+function parseJSON(raw) {
+  const match = raw.trim().match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No JSON returned from model');
+  return JSON.parse(match[0]);
+}
+
+async function callAnthropic(prompt) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','x-api-key':getKey(),
+      'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1200,messages:[{role:'user',content:prompt}]})
+  });
+  const d = await res.json();
+  if (d.error) throw new Error(d.error.message);
+  return parseJSON(d.content[0].text);
+}
+
+async function callOpenAI(prompt) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','Authorization':'Bearer ' + getKey()},
+    body: JSON.stringify({model:'gpt-4o-mini',max_tokens:1200,messages:[{role:'user',content:prompt}]})
+  });
+  const d = await res.json();
+  if (d.error) throw new Error(d.error.message);
+  return parseJSON(d.choices[0].message.content);
+}
+
+async function callGemini(prompt) {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${getKey()}`,
+    {method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})}
+  );
+  const d = await res.json();
+  if (d.error) throw new Error(d.error.message);
+  return parseJSON(d.candidates[0].content.parts[0].text);
+}
+
+async function callOllama(prompt) {
+  const base = (document.getElementById('key-ollama').value.trim() || 'http://localhost:11434').replace(/\/$/, '');
+  const model = document.getElementById('ollama-model').value.trim() || 'qwen2.5:7b';
+  const res = await fetch(`${base}/api/chat`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({model, stream:false, messages:[{role:'user',content:prompt}]})
+  });
+  const d = await res.json();
+  if (d.error) throw new Error(d.error);
+  return parseJSON(d.message.content);
+}
+
+// ── History ────────────────────────────────────────────
+function addHistory(text) {
+  const time = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  historyItems.unshift({time, text});
+  const list = document.getElementById('history');
+  if (historyItems.length === 1) list.innerHTML = '';
+  const item = document.createElement('div'); item.className = 'hi';
+  item.innerHTML = `<div class="hi-meta">${time} · ${providerLabel()}</div><div class="hi-text">${text}</div>`;
   list.prepend(item);
 }
-window.clearHistory=function(){historyItems=[];document.getElementById('history').innerHTML='<div class="empty-note">No translations yet</div>';};
+window.clearHistory = function() {
+  historyItems = [];
+  document.getElementById('history').innerHTML = '<div class="empty-note">No translations yet</div>';
+};
 </script>
 </body>
 </html>
