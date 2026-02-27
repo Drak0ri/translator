@@ -129,6 +129,39 @@
   .mnav-btn:hover{color:white;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.06)}
   .mnav-btn.active{color:white;background:linear-gradient(135deg,rgba(37,99,235,.3),rgba(14,165,233,.2));
     border-color:rgba(14,165,233,.5);box-shadow:0 0 12px rgba(14,165,233,.15)}
+
+  /* Mode toggle */
+  .mode-toggle{display:flex;gap:6px;margin-bottom:16px;background:var(--surface);
+    border:1px solid var(--border);border-radius:10px;padding:4px}
+  .mtog{flex:1;padding:8px;border-radius:7px;border:none;background:none;
+    font-family:'Syne',sans-serif;font-weight:700;font-size:.75rem;letter-spacing:.04em;
+    color:var(--muted2);cursor:pointer;transition:all .2s;text-align:center}
+  .mtog:hover{color:var(--text)}
+  .mtog.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;
+    box-shadow:0 2px 8px rgba(37,99,235,.3)}
+
+  /* PTT button */
+  .ptt-wrap{display:none;flex-direction:column;align-items:center;gap:10px;padding:8px 0}
+  .ptt-wrap.visible{display:flex}
+  .ptt-big{width:140px;height:140px;border-radius:50%;border:3px solid var(--border);
+    background:var(--surface);font-size:2.2rem;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    transition:all .15s;user-select:none;-webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;}
+  .ptt-big:hover{background:var(--card);border-color:var(--accent2)}
+  .ptt-big.recording{background:rgba(220,38,38,.1);border-color:#dc2626;
+    box-shadow:0 0 0 0 rgba(220,38,38,.4);animation:pring 1.4s infinite}
+  .ptt-big.processing{background:rgba(37,99,235,.1);border-color:var(--accent)}
+  @keyframes pring{
+    0%{box-shadow:0 0 0 0 rgba(220,38,38,.4)}
+    70%{box-shadow:0 0 0 20px rgba(220,38,38,0)}
+    100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
+  .ptt-sublabel{font-size:.75rem;color:var(--muted);font-family:'DM Sans',sans-serif}
+
+  /* Mic area hide/show per mode */
+  .mic-toggle-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .mic-toggle-inner{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+  #mic-toggle-section{display:flex;flex-direction:column;align-items:center;gap:10px}
 </style>
 </head>
 <body>
@@ -186,7 +219,29 @@
           <option value="vi-VN">Vietnamese</option>
         </select>
       </div>
-      <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+      <!-- Mode toggle -->
+      <div class="mode-toggle" id="input-mode-toggle">
+        <button class="mtog active" id="mtog-toggle" onclick="setInputMode('toggle')">🎤 Toggle</button>
+        <button class="mtog" id="mtog-ptt" onclick="setInputMode('ptt')">🖐 Hold to Talk</button>
+      </div>
+
+      <!-- Toggle mode (existing mic button) -->
+      <div id="mic-toggle-section">
+        <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+      </div>
+
+      <!-- PTT mode -->
+      <div class="ptt-wrap" id="ptt-wrap">
+        <button class="ptt-big" id="ptt-big"
+          onmousedown="startPTT()" onmouseup="stopPTT()"
+          ontouchstart="startPTT()" ontouchend="stopPTT()"
+          onmouseleave="stopPTT()">
+          🎤
+          <span style="font-family:'DM Sans',sans-serif;font-size:.65rem;color:var(--muted)">HOLD</span>
+        </button>
+        <div class="ptt-sublabel" id="ptt-sublabel">Hold to speak, release to translate</div>
+      </div>
+
       <div class="mic-label" id="mic-label">Connect to a room first, then press mic</div>
       <div class="transcript-box empty" id="transcript">Spoken words will appear here...</div>
     </div>
@@ -304,7 +359,7 @@ const FB_CONFIG = {
 
 let db = null, connected = false, roomCode = '';
 let listenerLangs = new Set();
-let isListening = false, recognition = null;
+let isListening = false, recognition = null, inputMode = 'toggle', pttRecognition = null, pttActive = false;
 let selectedLangs = new Set();
 let historyItems = [];
 let currentProvider = 'anthropic';
@@ -384,7 +439,9 @@ window.connectRoom = async function() {
     connected = true;
     document.getElementById('room-display').textContent = roomCode;
     setStatus(`✓ Room ${roomCode} · ${providerLabel()}`, 'ok');
-    document.getElementById('mic-label').textContent = 'Press mic to start speaking';
+    warmUpSpeakerMic();
+    document.getElementById('mic-label').textContent = 'Warming up mic...';
+    document.getElementById('ptt-sublabel').textContent = 'Warming up mic...';
   } catch(e) { setStatus('Firebase error: ' + e.message, 'err'); }
 };
 
@@ -435,6 +492,112 @@ function renderTransCards() {
     }
   });
 }
+
+// ── Input mode ─────────────────────────────────────────
+window.setInputMode = function(mode) {
+  inputMode = mode;
+  document.getElementById('mtog-toggle').classList.toggle('active', mode === 'toggle');
+  document.getElementById('mtog-ptt').classList.toggle('active', mode === 'ptt');
+  document.getElementById('mic-toggle-section').style.display = mode === 'toggle' ? 'flex' : 'none';
+  document.getElementById('ptt-wrap').classList.toggle('visible', mode === 'ptt');
+  if (mode === 'toggle' && isListening) { stopMic(); }
+  if (mode === 'ptt' && isListening) { stopMic(); }
+};
+
+// ── Mic warmup ──────────────────────────────────────────
+function markSpeakerReady() {
+  const label = document.getElementById('mic-label');
+  if (label) label.textContent = inputMode === 'toggle' ? 'Press mic to start speaking' : 'Hold button to speak';
+  const psub = document.getElementById('ptt-sublabel');
+  if (psub) {
+    psub.textContent = '✓ Ready — hold to speak, release to translate';
+    setTimeout(() => { psub.textContent = 'Hold to speak, release to translate'; }, 2000);
+  }
+  const pttBtn = document.getElementById('ptt-big');
+  if (pttBtn) {
+    pttBtn.style.borderColor = 'var(--success)';
+    setTimeout(() => { pttBtn.style.borderColor = ''; }, 1500);
+  }
+}
+
+function warmUpSpeakerMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { markSpeakerReady(); return; }
+  const lang = document.getElementById('input-lang').value;
+
+  // Guaranteed fallback — mark ready after 3s no matter what
+  const fallback = setTimeout(() => markSpeakerReady(), 3000);
+
+  try {
+    const r = new SR();
+    r.lang = lang;
+    r.continuous = false;
+    r.interimResults = false;
+    r.onstart = () => { setTimeout(() => { try { r.stop(); } catch(e) {} }, 200); };
+    r.onerror = () => { clearTimeout(fallback); markSpeakerReady(); };
+    r.onend = () => { clearTimeout(fallback); markSpeakerReady(); };
+    r.start();
+  } catch(e) { clearTimeout(fallback); markSpeakerReady(); }
+}
+
+// ── PTT for speaker page ────────────────────────────────
+window.startPTT = function() {
+  if (!connected) return;
+  if (pttActive) return;
+  const psub = document.getElementById('ptt-sublabel');
+  if (psub && psub.textContent.includes('Warming')) {
+    psub.textContent = 'Almost ready — try again in a moment';
+    setTimeout(() => { psub.textContent = 'Warming up mic...'; }, 1500);
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setMicLabel('Use Chrome for speech recognition', 'err'); return; }
+  pttActive = true;
+  const lang = document.getElementById('input-lang').value;
+  const btn = document.getElementById('ptt-big');
+  btn.className = 'ptt-big recording';
+  document.getElementById('ptt-sublabel').textContent = 'Listening...';
+  pttRecognition = new SR();
+  pttRecognition.lang = lang;
+  pttRecognition.continuous = false;
+  pttRecognition.interimResults = true;
+  pttRecognition.onresult = e => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    const box = document.getElementById('transcript');
+    box.classList.remove('empty');
+    box.textContent = final || interim;
+    if (final.trim().length > 0) pttFinalText = final.trim();
+  };
+  pttRecognition.onerror = () => { pttActive = false; btn.className = 'ptt-big'; document.getElementById('ptt-sublabel').textContent = 'Hold to speak, release to translate'; };
+  pttRecognition.onend = () => {
+    if (pttFinalText) {
+      btn.className = 'ptt-big processing';
+      document.getElementById('ptt-sublabel').textContent = 'Translating...';
+      translateAndPush(pttFinalText).then(() => {
+        btn.className = 'ptt-big';
+        document.getElementById('ptt-sublabel').textContent = 'Hold to speak, release to translate';
+      });
+      pttFinalText = '';
+    } else {
+      btn.className = 'ptt-big';
+      document.getElementById('ptt-sublabel').textContent = 'Hold to speak, release to translate';
+    }
+    pttActive = false;
+  };
+  pttFinalText = '';
+  pttRecognition.start();
+};
+
+window.stopPTT = function() {
+  if (!pttActive) return;
+  try { pttRecognition.stop(); } catch(e) {}
+};
+
+let pttFinalText = '';
 
 // ── Mic ────────────────────────────────────────────────
 window.toggleMic = function() {
