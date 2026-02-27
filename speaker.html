@@ -194,7 +194,7 @@
 
     <div class="field-single">
       <label>Room Code <span style="color:var(--muted);font-weight:400;font-size:.75rem">— share this with listeners before the meeting</span></label>
-      <input type="text" id="room-code" placeholder="e.g. SPRING-2026" maxlength="20"
+      <input type="text" id="room-code" placeholder="e.g. A11" maxlength="20"
         oninput="this.value=this.value.toUpperCase()" />
     </div>
 
@@ -320,7 +320,7 @@ window.addEventListener('load', () => {
   });
   document.getElementById('key-ollama').value = localStorage.getItem('iesv_key_ollama') || 'http://localhost:11434';
   document.getElementById('ollama-model').value = localStorage.getItem('iesv_ollama_model') || 'qwen2.5:7b';
-  const savedRoom = localStorage.getItem('iesv_room-code');
+  const savedRoom = localStorage.getItem('iesv_room-code') || 'A11';
   if (savedRoom) document.getElementById('room-code').value = savedRoom;
   const savedProvider = localStorage.getItem('iesv_provider');
   if (savedProvider) window.setProvider(savedProvider);
