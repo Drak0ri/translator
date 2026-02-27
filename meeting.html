@@ -246,6 +246,18 @@
 
   ::-webkit-scrollbar{width:4px}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+  /* ── Mode nav ── */
+  .mode-nav{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;
+    border-bottom:1px solid var(--border);background:rgba(5,8,15,.6);backdrop-filter:blur(8px);
+    position:relative;z-index:2}
+  .mnav-btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;
+    font-family:'Syne',sans-serif;font-weight:700;font-size:.75rem;letter-spacing:.04em;
+    color:rgba(255,255,255,.5);padding:7px 16px;border-radius:10px;
+    border:1px solid rgba(255,255,255,.1);transition:all .2s;white-space:nowrap}
+  .mnav-btn:hover{color:white;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.06)}
+  .mnav-btn.active{color:white;background:linear-gradient(135deg,rgba(37,99,235,.3),rgba(14,165,233,.2));
+    border-color:rgba(14,165,233,.5);box-shadow:0 0 12px rgba(14,165,233,.15)}
 </style>
 </head>
 <body>
@@ -256,13 +268,17 @@
     <h1>Live Translator</h1>
   </div>
   <div class="header-right">
-    <a href="speaker.html" class="nav-link">↖ Speaker mode</a>
     <div class="conn-pill" id="conn-pill" style="display:none">
       <div class="dot"></div><span id="conn-text">0 listeners</span>
     </div>
     <div class="room-chip" id="room-chip" style="display:none">—</div>
   </div>
 </header>
+<div class="mode-nav">
+  <a href="speaker.html" class="mnav-btn">🎤 Speaker</a>
+  <a href="meeting.html" class="mnav-btn active">⇄ Meeting</a>
+  <a href="listener.html" class="mnav-btn">👂 Listener</a>
+</div>
 
 <!-- ══════════════════════════════════════
      SETUP SCREEN
