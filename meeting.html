@@ -82,15 +82,6 @@
     cursor:pointer;transition:all .2s}
   .add-speaker-btn:hover{border-color:var(--accent2);color:var(--accent2)}
 
-  /* Mode selector */
-  .mode-tabs{display:flex;gap:8px;margin-bottom:16px}
-  .mode-tab{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;
-    padding:12px;text-align:center;cursor:pointer;transition:all .2s;user-select:none}
-  .mode-tab:hover{border-color:var(--accent2)}
-  .mode-tab.active{background:rgba(37,99,235,.1);border-color:var(--accent)}
-  .mode-tab-icon{font-size:1.4rem;margin-bottom:4px}
-  .mode-tab-label{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.05em}
-  .mode-tab-desc{font-size:.7rem;color:var(--muted);margin-top:2px;line-height:1.3}
 
   /* Provider */
   .provider-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
@@ -341,23 +332,6 @@
     <div class="setup-sub">Configure your speakers, choose a translation provider, then start the meeting.</div>
   </div>
 
-  <!-- Display mode -->
-  <div class="card">
-    <div class="card-title">Display Mode</div>
-    <div class="mode-tabs">
-      <div class="mode-tab active" id="mode-table" onclick="setMode('table')">
-        <div class="mode-tab-icon">💬</div>
-        <div class="mode-tab-label">TABLE</div>
-        <div class="mode-tab-desc">Shared device or each person has their own</div>
-      </div>
-      <div class="mode-tab" id="mode-projector" onclick="setMode('projector')">
-        <div class="mode-tab-icon">📽</div>
-        <div class="mode-tab-label">PROJECTOR</div>
-        <div class="mode-tab-desc">Large screen at the front of the room</div>
-      </div>
-    </div>
-  </div>
-
   <!-- Speakers -->
   <div class="card">
     <div class="card-title">Speakers</div>
@@ -477,11 +451,7 @@
       color:var(--muted2);font-family:'DM Sans',sans-serif;font-size:.78rem;padding:6px 14px;cursor:pointer">
       ← End &amp; Reconfigure
     </button>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="projector-toggle" id="projector-toggle" onclick="toggleProjector()">
-        📽 Projector view
-      </button>
-    </div>
+
   </div>
 </div>
 
@@ -528,7 +498,7 @@ const SPEAKER_LANGS = [
 
 const LANG_NAMES = Object.fromEntries(SPEAKER_LANGS.map(l => [l.code, l.label]));
 
-const OUTPUT_PRESETS = ['Albanian','Amharic','Arabic','Dari','Dutch','Farsi','French',
+const OUTPUT_PRESETS = ['English','Albanian','Amharic','Arabic','Dari','Dutch','Farsi','French',
   'German','Greek','Hindi','Indonesian','Italian','Japanese','Korean','Kurdish',
   'Malay','Norwegian','Polish','Portuguese','Romanian','Russian','Somali','Spanish',
   'Swedish','Tigrinya','Turkish','Ukrainian','Urdu','Vietnamese'];
@@ -539,12 +509,11 @@ const SPEAKER_HEX = ['#2563eb','#059669','#d97706','#7c3aed'];
 // ── State ──────────────────────────────────────────────
 let db = null, roomCode = '';
 let speakers = []; // {id, name, langCode, langLabel, recognition, isRecording}
-let selectedLangs = new Set(['Arabic','Swedish']);
+let selectedLangs = new Set(['English','Arabic','Swedish']);
 let listenerLangs = new Set();
 let historyItems = [];
 let sessionStartTime = null;
-let displayMode = 'table'; // 'table' | 'projector'
-let projectorActive = false;
+let projectorActive = true;
 let currentProvider = 'anthropic';
 let speakerCount = 0;
 
@@ -577,12 +546,6 @@ window.toggleStartBtn = function() {
   btn.disabled = !checked;
   btn.style.opacity = checked ? '1' : '.35';
   btn.style.cursor = checked ? 'pointer' : 'not-allowed';
-};
-
-window.setMode = function(m) {
-  displayMode = m;
-  document.getElementById('mode-table').classList.toggle('active', m === 'table');
-  document.getElementById('mode-projector').classList.toggle('active', m === 'projector');
 };
 
 // ── Provider ───────────────────────────────────────────
@@ -726,7 +689,7 @@ window.startMeeting = async function() {
     document.getElementById('conn-pill').style.display = 'flex';
 
     buildMeetingUI();
-    if (displayMode === 'projector') toggleProjector(true);
+    applyProjectorMode();
   } catch(e) { setSetupStatus('Firebase error: ' + e.message, 'err'); }
 };
 
@@ -882,7 +845,7 @@ async function translateAndPush(sp, text) {
       speakerName: sp.name, speakerNum: idx + 1
     });
 
-    addHistory(sp, text, idx);
+    addHistory(sp, text, idx, translations);
     setSpStatus(sp.id, 'done', '✓ Done');
     setPTTState(sp.id, 'idle');
     document.getElementById('ptt-label-' + sp.id).textContent = 'Hold to speak';
@@ -900,11 +863,11 @@ async function translateAndPush(sp, text) {
 }
 
 // ── History ────────────────────────────────────────────
-function addHistory(sp, text, idx) {
+function addHistory(sp, text, idx, translations) {
   const time = new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
   const list = document.getElementById('history-list');
   if (historyItems.length === 0) list.innerHTML = '';
-  historyItems.unshift({sp, text, idx, time});
+  historyItems.unshift({sp, text, idx, time, translations: translations || {}});
   const item = document.createElement('div');
   item.className = 'h-item';
   item.innerHTML = `
@@ -915,20 +878,12 @@ function addHistory(sp, text, idx) {
   list.prepend(item);
 }
 
-// ── Projector toggle ───────────────────────────────────
-window.toggleProjector = function(force) {
-  projectorActive = force !== undefined ? force : !projectorActive;
-  const display = document.getElementById('display-area');
-  const wrap = document.getElementById('speakers-wrap');
-  const btn = document.getElementById('projector-toggle');
-
-  display.classList.toggle('projector-mode', projectorActive);
-  wrap.classList.toggle('projector-mode-wrap', projectorActive);
-  btn.textContent = projectorActive ? '💬 Table view' : '📽 Projector view';
-
-  // Rebuild grid with correct sizing
+// Projector is always on — apply on build
+function applyProjectorMode() {
+  document.getElementById('display-area').classList.add('projector-mode');
+  document.getElementById('speakers-wrap').classList.add('projector-mode-wrap');
   renderTransGrid();
-};
+}
 
 // ── UI helpers ─────────────────────────────────────────
 function setSpStatus(id, type, text) {
@@ -971,6 +926,11 @@ function buildTranscriptLines() {
   [...historyItems].reverse().forEach(item => {
     lines.push(`[${item.time}] Speaker ${item.idx+1} — ${item.sp.name} (${item.sp.langLabel})`);
     lines.push(`  Original: ${item.text}`);
+    if (item.translations && Object.keys(item.translations).length > 0) {
+      Object.entries(item.translations).forEach(([lang, t]) => {
+        lines.push(`  ${lang}: ${t}`);
+      });
+    }
     lines.push('');
   });
   return lines;
@@ -988,7 +948,8 @@ function saveTranscriptToStorage() {
       speakerNum: item.idx + 1,
       speakerName: item.sp.name,
       speakerLang: item.sp.langLabel,
-      text: item.text
+      text: item.text,
+      translations: item.translations || {}
     }))
   };
   localStorage.setItem('lt_transcript', JSON.stringify(payload));
@@ -1035,6 +996,7 @@ function doEndMeeting() {
   speakers.forEach(sp => { if (sp.recognition) try { sp.recognition.stop(); } catch(e) {} });
   document.getElementById('meeting-screen').style.display = 'none';
   document.getElementById('setup-screen').style.display = 'block';
+  window.scrollTo(0, 0);
   document.getElementById('room-chip').style.display = 'none';
   document.getElementById('conn-pill').style.display = 'none';
 }
@@ -1153,7 +1115,12 @@ window.downloadSavedTranscript = function() {
   lines.push('-------------------------------------');
   (data.items || []).forEach(item => {
     lines.push(`[${item.time}] Speaker ${item.speakerNum} — ${item.speakerName} (${item.speakerLang})`);
-    lines.push(`  ${item.text}`);
+    lines.push(`  Original: ${item.text}`);
+    if (item.translations && Object.keys(item.translations).length > 0) {
+      Object.entries(item.translations).forEach(([lang, t]) => {
+        lines.push(`  ${lang}: ${t}`);
+      });
+    }
     lines.push('');
   });
   const blob = new Blob([lines.join('\n')], {type:'text/plain'});
