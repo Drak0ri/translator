@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Translator — Teacher Console</title>
+<title>Translator — Speaker Console</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -14,8 +14,8 @@
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
   body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;
-    background:radial-gradient(ellipse 60% 40% at 20% 10%,rgba(37,99,235,.07) 0%,transparent 60%),
-               radial-gradient(ellipse 50% 50% at 80% 90%,rgba(14,165,233,.05) 0%,transparent 60%);
+    background:radial-gradient(ellipse 60% 40% at 20% 10%,rgba(37,99,235,.07) 0%,translistener 60%),
+               radial-gradient(ellipse 50% 50% at 80% 90%,rgba(14,165,233,.05) 0%,translistener 60%);
     pointer-events:none;z-index:0}
   header{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;
     padding:18px 32px;border-bottom:1px solid var(--border);background:rgba(5,8,15,.85);backdrop-filter:blur(16px)}
@@ -115,17 +115,17 @@
   .hi-meta{font-size:.72rem;color:var(--muted);margin-bottom:3px}
   .hi-text{font-size:.85rem}
   .empty-note{color:var(--muted);font-size:.82rem;font-style:italic;text-align:center;padding:16px}
-  ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:translistener}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 </style>
 </head>
 <body>
 <header>
   <div class="header-left">
-    <div class="badge">TEACHER</div>
+    <div class="badge">SPEAKER</div>
     <h1>Live Translator</h1>
   </div>
   <div style="display:flex;align-items:center;gap:16px">
-    <div class="conn-count"><div class="dot"></div><span id="conn-count">0 parents connected</span></div>
+    <div class="conn-count"><div class="dot"></div><span id="conn-count">0 listeners connected</span></div>
     <div class="room-display" id="room-display">No room</div>
   </div>
 </header>
@@ -187,7 +187,7 @@
     </div>
 
     <div class="field-single">
-      <label>Room Code <span style="color:var(--muted);font-weight:400;font-size:.75rem">— share this with parents before the meeting</span></label>
+      <label>Room Code <span style="color:var(--muted);font-weight:400;font-size:.75rem">— share this with listeners before the meeting</span></label>
       <input type="text" id="room-code" placeholder="e.g. SPRING-2026" maxlength="20"
         oninput="this.value=this.value.toUpperCase()" />
     </div>
@@ -310,7 +310,7 @@ window.connectRoom = async function() {
     db = getDatabase(app);
     onValue(ref(db, `rooms/${roomCode}/connections`), snap => {
       const n = snap.exists() ? Object.keys(snap.val()).length : 0;
-      document.getElementById('conn-count').textContent = `${n} parent${n===1?'':'s'} connected`;
+      document.getElementById('conn-count').textContent = `${n} listener${n===1?'':'s'} connected`;
     });
     await set(ref(db, `rooms/${roomCode}/active`), true);
     await set(ref(db, `rooms/${roomCode}/latest`), {text:'',translations:{},ts:Date.now(),langs:[]});
