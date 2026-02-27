@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Translator</title>
+<title>IESV Live Translator</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -53,10 +53,7 @@
   }
   .join-btn:hover{opacity:.9}.join-btn:active{transform:scale(.98)}
   .join-err{color:var(--danger);font-size:.82rem;margin-top:10px;min-height:18px}
-  .firebase-fields{border-top:1px solid var(--border);padding-top:20px;margin-top:20px}
-  .firebase-fields summary{font-size:.82rem;color:var(--muted);cursor:pointer;margin-bottom:12px;list-style:none}
-  .firebase-fields summary::-webkit-details-marker{display:none}
-  .firebase-fields summary::before{content:'⚙ '}
+
 
   /* Main translator screen */
   #main-screen{display:none;min-height:100vh;position:relative;z-index:1}
@@ -170,11 +167,7 @@
       <input type="text" id="j-custom-lang" placeholder="e.g. Tigrinya" />
     </div>
 
-    <details class="firebase-fields">
-      <summary>Firebase settings (first time only)</summary>
-      <div class="field"><label>Firebase API Key</label><input type="text" id="j-fb-key" placeholder="AIza..." /></div>
-      <div class="field"><label>Firebase Project ID</label><input type="text" id="j-fb-proj" placeholder="my-project-12345" /></div>
-    </details>
+
 
     <button class="join-btn" onclick="joinRoom()">Join Meeting</button>
     <div class="join-err" id="join-err"></div>
@@ -240,10 +233,6 @@ const FB_CONFIG={
   appId:'1:877155393473:web:13622664b9563976ac9940'
 };
 window.addEventListener('load',()=>{
-  // Pre-fill with hardcoded config
-  document.getElementById('j-fb-key').value=FB_CONFIG.apiKey;
-  document.getElementById('j-fb-proj').value=FB_CONFIG.projectId;
-
   // Show/hide custom lang field
   document.getElementById('j-lang').addEventListener('change',function(){
     document.getElementById('custom-lang-field').style.display=
@@ -256,17 +245,10 @@ window.joinRoom=async function(){
   const langSel=document.getElementById('j-lang').value;
   const langCustom=document.getElementById('j-custom-lang').value.trim();
   const lang=langSel==='Other / type below'?langCustom:langSel;
-  const fbKey=document.getElementById('j-fb-key').value.trim()||localStorage.getItem('iesv_fb-api-key');
-  const fbProj=document.getElementById('j-fb-proj').value.trim()||localStorage.getItem('iesv_fb-project');
-
   const err=document.getElementById('join-err');
   if(!room){err.textContent='Please enter a room code.';return;}
   if(!lang){err.textContent='Please select your language.';return;}
-  if(!fbKey||!fbProj){err.textContent='Firebase settings needed — expand the settings section.';return;}
-
   err.textContent='';
-  localStorage.setItem('iesv_fb-api-key',fbKey);
-  localStorage.setItem('iesv_fb-project',fbProj);
 
   try{
     const app=initializeApp({...FB_CONFIG},'iesv-p-'+Date.now());
