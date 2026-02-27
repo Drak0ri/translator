@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IESV Translator — Teacher Console</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#05080f;--surface:#0d1117;--card:#111927;--border:#1e2d45;
+    --accent:#2563eb;--accent2:#0ea5e9;--success:#10b981;--warn:#f59e0b;--danger:#ef4444;
+    --text:#e8f0ff;--muted:#4a6080;--muted2:#7a9ab8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+  body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;
+    background:radial-gradient(ellipse 60% 40% at 20% 10%,rgba(37,99,235,.07) 0%,transparent 60%),
+               radial-gradient(ellipse 50% 50% at 80% 90%,rgba(14,165,233,.05) 0%,transparent 60%);
+    pointer-events:none;z-index:0}
+  header{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;
+    padding:18px 32px;border-bottom:1px solid var(--border);background:rgba(5,8,15,.85);backdrop-filter:blur(16px)}
+  .header-left{display:flex;align-items:center;gap:14px}
+  .badge{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;
+    font-family:'Syne',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.1em;padding:4px 10px;border-radius:6px}
+  header h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;letter-spacing:-.02em}
+  .room-display{font-family:'DM Mono',monospace;font-size:.85rem;color:var(--accent2);
+    background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.2);padding:6px 14px;border-radius:8px}
+  .conn-count{font-size:.8rem;color:var(--muted2);display:flex;align-items:center;gap:6px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:blink 2s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  .main{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:28px 24px;display:flex;flex-direction:column;gap:20px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px}
+  .card-title{font-family:'Syne',sans-serif;font-size:.75rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.1em;color:var(--muted2);margin-bottom:14px}
+  .setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:600px){.setup-grid{grid-template-columns:1fr}}
+  label{display:block;font-size:.78rem;color:var(--muted2);margin-bottom:6px}
+  input,select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;
+    padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;transition:border-color .2s}
+  input:focus,select:focus{border-color:var(--accent)}
+  input[type=password]{font-family:'DM Mono',monospace;letter-spacing:.05em}
+  .btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;border:none;
+    border-radius:10px;padding:11px 20px;font-family:'Syne',sans-serif;font-weight:700;font-size:.82rem;
+    cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
+  .btn:hover{opacity:.88}.btn:active{transform:scale(.97)}.btn:disabled{opacity:.35;cursor:not-allowed}
+  .btn-row{display:flex;gap:10px;margin-top:14px;align-items:center}
+  .btn-ghost{background:none;border:1px solid var(--border);color:var(--muted2);
+    font-family:'DM Sans',sans-serif;font-size:.82rem;padding:9px 16px;border-radius:9px;cursor:pointer}
+  .btn-ghost:hover{background:var(--surface);color:var(--text)}
+  .spill{font-size:.8rem;padding:5px 12px;border-radius:20px;display:inline-block}
+  .spill.ok{background:rgba(16,185,129,.1);color:var(--success);border:1px solid rgba(16,185,129,.2)}
+  .spill.warn{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.2)}
+  .spill.err{background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.2)}
+  .mic-area{display:flex;flex-direction:column;align-items:center;gap:18px;padding:10px 0}
+  .lang-row{display:flex;align-items:center;gap:10px}
+  .lang-row label{margin:0;font-size:.83rem;color:var(--muted2);white-space:nowrap}
+  .lang-row select{width:auto}
+  .mic-btn{width:96px;height:96px;border-radius:50%;background:linear-gradient(145deg,var(--accent),var(--accent2));
+    border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2.2rem;
+    transition:all .2s;padding:0}
+  .mic-btn.listening{background:linear-gradient(145deg,#dc2626,#ea580c);animation:mpulse 1.4s infinite}
+  .mic-btn.processing{background:linear-gradient(145deg,var(--accent),#7c3aed);animation:mglow .8s infinite alternate}
+  @keyframes mpulse{0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)}70%{box-shadow:0 0 0 24px rgba(220,38,38,0)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
+  @keyframes mglow{from{box-shadow:0 0 16px rgba(37,99,235,.5)}to{box-shadow:0 0 32px rgba(124,58,237,.7)}}
+  .mic-label{font-size:.88rem;color:var(--muted2)}.mic-label.active{color:var(--accent2)}.mic-label.err{color:var(--danger)}
+  .transcript-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    padding:14px 16px;font-size:.92rem;line-height:1.7;min-height:56px;color:var(--text);width:100%}
+  .transcript-box.empty{color:var(--muted);font-style:italic}
+  .chip-grid{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 13px;
+    font-size:.82rem;cursor:pointer;transition:all .15s;user-select:none}
+  .chip:hover{border-color:var(--accent)}
+  .chip.on{background:rgba(37,99,235,.12);border-color:var(--accent);color:#93c5fd}
+  .add-lang-row{display:flex;gap:8px;margin-top:10px}
+  .add-lang-row input{flex:1}
+  .trans-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+  .trans-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;
+    position:relative;overflow:hidden;transition:border-color .3s}
+  .trans-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));transform:scaleX(0);
+    transition:transform .4s;transform-origin:left}
+  .trans-card.flash::after{transform:scaleX(1)}
+  .tl{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--accent2);margin-bottom:6px;text-transform:uppercase}
+  .tt{font-size:.88rem;line-height:1.6;color:var(--text);min-height:36px}
+  .tt.loading{color:var(--muted);font-style:italic}
+  .history{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+  .hi{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 13px}
+  .hi-meta{font-size:.72rem;color:var(--muted);margin-bottom:3px}
+  .hi-text{font-size:.85rem}
+  .empty-note{color:var(--muted);font-size:.82rem;font-style:italic;text-align:center;padding:16px}
+  ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-left">
+    <div class="badge">TEACHER</div>
+    <h1>IESV Live Translator</h1>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="conn-count"><div class="dot"></div><span id="conn-count">0 parents connected</span></div>
+    <div class="room-display" id="room-display">No room</div>
+  </div>
+</header>
+
+<div class="main">
+  <div class="card">
+    <div class="card-title">Setup — enter once, saved locally</div>
+    <div class="setup-grid">
+      <div>
+        <label>Anthropic API Key</label>
+        <input type="password" id="api-key" placeholder="sk-ant-..." />
+      </div>
+      <div>
+        <label>Room Code (share with parents)</label>
+        <input type="text" id="room-code" placeholder="e.g. SPRING-2026" maxlength="20" />
+      </div>
+      <div>
+        <label>Firebase API Key</label>
+        <input type="text" id="fb-api-key" placeholder="AIza..." />
+      </div>
+      <div>
+        <label>Firebase Project ID</label>
+        <input type="text" id="fb-project" placeholder="my-project-12345" />
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="connectRoom()">Connect to Room</button>
+      <span id="setup-status"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Speak &amp; Translate</div>
+    <div class="mic-area">
+      <div class="lang-row">
+        <label>Speaking in:</label>
+        <select id="input-lang">
+          <option value="en-GB">English</option>
+          <option value="sv-SE">Swedish</option>
+        </select>
+      </div>
+      <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+      <div class="mic-label" id="mic-label">Connect to a room first, then press mic</div>
+      <div class="transcript-box empty" id="transcript">Spoken words will appear here...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Target Languages</div>
+    <div class="chip-grid" id="chip-grid"></div>
+    <div class="add-lang-row">
+      <input type="text" id="custom-lang" placeholder="Add language (e.g. Tigrinya, Pashto...)" />
+      <button class="btn" style="padding:10px 16px;font-size:.8rem" onclick="addLang()">+ Add</button>
+    </div>
+  </div>
+
+  <div class="card" id="trans-section" style="display:none">
+    <div class="card-title">Live Translation Preview</div>
+    <div class="trans-grid" id="trans-grid"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="card-title" style="margin:0">Session History</div>
+      <button class="btn-ghost" onclick="clearHistory()">Clear</button>
+    </div>
+    <div class="history" id="history"><div class="empty-note">No translations yet</div></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+let db=null, connected=false, roomCode='';
+let isListening=false, recognition=null;
+let selectedLangs=new Set();
+let historyItems=[];
+
+const PRESETS=['Arabic','Somali','Dari','Tigrinya','Kurdish','Turkish','Polish','Spanish','French','German','Urdu','Hindi','Amharic','Farsi','Romanian','Albanian'];
+
+const FB_CONFIG={
+  apiKey:'AIzaSyAxu-jLi24nzfVr93CepVG6EZnY4t7aZ-o',
+  authDomain:'iesv-translator.firebaseapp.com',
+  databaseURL:'https://iesv-translator-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId:'iesv-translator',
+  appId:'1:877155393473:web:13622664b9563976ac9940'
+};
+window.addEventListener('load',()=>{
+  document.getElementById('fb-api-key').value=FB_CONFIG.apiKey;
+  document.getElementById('fb-project').value=FB_CONFIG.projectId;
+  ['api-key','room-code'].forEach(id=>{
+    const v=localStorage.getItem('iesv_'+id);
+    if(v) document.getElementById(id).value=v;
+  });
+  renderChips();
+});
+
+window.connectRoom=async function(){
+  const apiKey=document.getElementById('api-key').value.trim();
+  roomCode=document.getElementById('room-code').value.trim().toUpperCase();
+  const fbKey=document.getElementById('fb-api-key').value.trim();
+  const fbProj=document.getElementById('fb-project').value.trim();
+  if(!apiKey||!roomCode||!fbKey||!fbProj){setStatus('Fill in all fields','err');return;}
+  ['api-key','room-code','fb-api-key','fb-project'].forEach(id=>localStorage.setItem('iesv_'+id,document.getElementById(id).value.trim()));
+  setStatus('Connecting...','warn');
+  try{
+    const app=initializeApp({...FB_CONFIG},'iesv-t-'+Date.now());
+    db=getDatabase(app);
+    onValue(ref(db,`rooms/${roomCode}/connections`),snap=>{
+      const n=snap.exists()?Object.keys(snap.val()).length:0;
+      document.getElementById('conn-count').textContent=`${n} parent${n===1?'':'s'} connected`;
+    });
+    await set(ref(db,`rooms/${roomCode}/active`),true);
+    await set(ref(db,`rooms/${roomCode}/latest`),{text:'',translations:{},ts:Date.now(),langs:[]});
+    connected=true;
+    document.getElementById('room-display').textContent=roomCode;
+    setStatus('✓ Room '+roomCode+' ready','ok');
+    document.getElementById('mic-label').textContent='Press mic to start speaking';
+  }catch(e){setStatus('Firebase error: '+e.message,'err');}
+};
+
+function setStatus(msg,type){
+  document.getElementById('setup-status').innerHTML=`<span class="spill ${type}">${msg}</span>`;
+}
+
+function renderChips(){
+  const g=document.getElementById('chip-grid');g.innerHTML='';
+  PRESETS.forEach(lang=>{
+    const c=document.createElement('div');
+    c.className='chip'+(selectedLangs.has(lang)?' on':'');
+    c.textContent=lang;c.onclick=()=>toggleLang(lang);g.appendChild(c);
+  });
+}
+function toggleLang(lang){selectedLangs.has(lang)?selectedLangs.delete(lang):selectedLangs.add(lang);renderChips();renderTransCards();}
+window.addLang=function(){
+  const input=document.getElementById('custom-lang');const lang=input.value.trim();if(!lang)return;
+  if(!PRESETS.includes(lang))PRESETS.push(lang);selectedLangs.add(lang);input.value='';renderChips();renderTransCards();
+};
+function slugify(s){return s.replace(/\s+/g,'-');}
+function renderTransCards(){
+  const sec=document.getElementById('trans-section'),grid=document.getElementById('trans-grid');
+  if(selectedLangs.size===0){sec.style.display='none';return;}
+  sec.style.display='block';
+  [...grid.children].forEach(c=>{if(!selectedLangs.has(c.dataset.lang))c.remove();});
+  selectedLangs.forEach(lang=>{
+    if(!grid.querySelector(`[data-lang="${lang}"]`)){
+      const card=document.createElement('div');card.className='trans-card';card.dataset.lang=lang;
+      card.innerHTML=`<div class="tl">${lang}</div><div class="tt" id="tt-${slugify(lang)}">—</div>`;
+      grid.appendChild(card);
+    }
+  });
+}
+
+window.toggleMic=function(){
+  if(!connected){alert('Connect to a room first.');return;}
+  if(selectedLangs.size===0){alert('Select at least one language.');return;}
+  isListening?stopMic():startMic();
+};
+function startMic(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){setMicLabel('Use Chrome for speech recognition','err');return;}
+  const lang=document.getElementById('input-lang').value;
+  recognition=new SR();recognition.continuous=true;recognition.interimResults=true;recognition.lang=lang;
+  recognition.onstart=()=>{
+    isListening=true;
+    document.getElementById('mic-btn').className='mic-btn listening';
+    document.getElementById('mic-btn').textContent='⏹';
+    setMicLabel('Listening... speak now','active');
+  };
+  let debounce=null;
+  recognition.onresult=e=>{
+    let interim='',final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal)final+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+    const box=document.getElementById('transcript');
+    box.classList.remove('empty');box.textContent=final||interim;
+    if(final.trim().length>3){clearTimeout(debounce);debounce=setTimeout(()=>translateAndPush(final.trim()),400);}
+  };
+  recognition.onerror=e=>{setMicLabel('Error: '+e.error,'err');stopMic();};
+  recognition.onend=()=>{if(isListening)recognition.start();};
+  recognition.start();
+}
+function stopMic(){
+  isListening=false;if(recognition)recognition.stop();
+  document.getElementById('mic-btn').className='mic-btn';
+  document.getElementById('mic-btn').textContent='🎤';
+  setMicLabel('Press mic to start speaking');
+}
+function setMicLabel(msg,type=''){
+  const el=document.getElementById('mic-label');el.textContent=msg;
+  el.className='mic-label'+(type?' '+type:'');
+}
+
+async function translateAndPush(text){
+  if(!text||selectedLangs.size===0)return;
+  const apiKey=localStorage.getItem('iesv_api-key');
+  const langList=[...selectedLangs].join(', ');
+  const srcLang=document.getElementById('input-lang').value==='sv-SE'?'Swedish':'English';
+  document.getElementById('mic-btn').className='mic-btn processing';
+  setMicLabel('Translating...','active');
+  selectedLangs.forEach(lang=>{
+    const el=document.getElementById('tt-'+slugify(lang));
+    if(el){el.textContent='Translating...';el.className='tt loading';}
+  });
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,
+        'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1200,
+        messages:[{role:'user',content:`Translate this ${srcLang} into these languages: ${langList}\nReturn ONLY valid JSON, keys=language names, values=translations. No markdown.\n\nText: "${text}"`}]})
+    });
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    const match=data.content[0].text.trim().match(/\{[\s\S]*\}/);
+    if(!match)throw new Error('Bad response');
+    const translations=JSON.parse(match[0]);
+    selectedLangs.forEach(lang=>{
+      const el=document.getElementById('tt-'+slugify(lang));
+      const card=el?.closest('.trans-card');
+      if(el&&translations[lang]){el.textContent=translations[lang];el.className='tt';
+        card?.classList.add('flash');setTimeout(()=>card?.classList.remove('flash'),1500);}
+    });
+    if(db){
+      await set(ref(db,`rooms/${roomCode}/latest`),{text,translations,ts:Date.now(),langs:[...selectedLangs]});
+    }
+    addHistory(text);
+    setMicLabel('Translated — ready for next phrase','active');
+  }catch(e){
+    setMicLabel('Error: '+e.message,'err');
+    selectedLangs.forEach(lang=>{const el=document.getElementById('tt-'+slugify(lang));if(el){el.textContent='Error';el.className='tt loading';}});
+  }
+  setTimeout(()=>{document.getElementById('mic-btn').className=isListening?'mic-btn listening':'mic-btn';},1000);
+}
+
+function addHistory(text){
+  const time=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  historyItems.unshift({time,text});
+  const list=document.getElementById('history');
+  if(historyItems.length===1)list.innerHTML='';
+  const item=document.createElement('div');item.className='hi';
+  item.innerHTML=`<div class="hi-meta">${time}</div><div class="hi-text">${text}</div>`;
+  list.prepend(item);
+}
+window.clearHistory=function(){historyItems=[];document.getElementById('history').innerHTML='<div class="empty-note">No translations yet</div>';};
+</script>
+</body>
+</html>
