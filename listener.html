@@ -240,7 +240,7 @@ const ALL_LANGS = ['English','Albanian','Amharic','Arabic','Dari','Dutch','Farsi
   'Polish','Portuguese','Romanian','Russian','Somali','Spanish','Swedish','Tigrinya',
   'Turkish','Ukrainian','Urdu','Vietnamese'];
 
-let db = null, myLang = '', myRoom = '', connId = '';
+let db = null, myLang = '', myRoom = '', connId = '', joinedAt = 0;
 let currentTranslation = '', lastTranslations = {};
 let extraLangs = new Set();
 let extrasOpen = false;
@@ -278,13 +278,18 @@ window.joinRoom = async function() {
     db = getDatabase(app);
     connId = 'l-' + Math.random().toString(36).slice(2, 8);
     myRoom = room; myLang = lang;
+    joinedAt = Date.now();
 
     // Register — speaker reads all connections and translates into their languages
     await set(ref(db, `rooms/${room}/connections/${connId}`), { lang, joined: Date.now() });
 
     // Listen for translations
     onValue(ref(db, `rooms/${room}/latest`), snap => {
-      if (snap.exists()) handleUpdate(snap.val());
+      if (!snap.exists()) return;
+      const data = snap.val();
+      // Ignore anything written before we joined
+      if (data.ts && data.ts < joinedAt) return;
+      handleUpdate(data);
     });
 
     document.getElementById('join-screen').style.display = 'none';
