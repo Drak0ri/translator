@@ -767,8 +767,8 @@ window.startPTT = function(id) {
   if (!sp || sp.isRecording) return;
   const lbl = document.getElementById('ptt-label-' + id);
   if (lbl && lbl.textContent === 'Warming up mic...') {
-    lbl.textContent = 'Almost ready — try again in a moment';
-    setTimeout(() => { if (lbl.textContent.includes('Almost')) lbl.textContent = 'Warming up mic...'; }, 1500);
+    // Stuck — just mark ready and let them proceed
+    markAllReady();
     return;
   }
 
@@ -906,11 +906,27 @@ function addHistory(sp, text, idx, translations) {
 // Starts and immediately stops a recognition session for each speaker language.
 // This triggers the browser mic permission prompt and warms up the Google SR
 // connection so the first real PTT press responds instantly.
+function markAllReady() {
+  speakers.forEach(sp => {
+    const lbl = document.getElementById('ptt-label-' + sp.id);
+    const btn = document.getElementById('ptt-' + sp.id);
+    if (lbl) lbl.textContent = 'Hold to speak';
+    if (btn) { btn.style.borderColor = 'var(--success)'; setTimeout(() => { btn.style.borderColor = ''; }, 1500); }
+  });
+}
+
 function warmUpMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return;
-  // Dedupe languages — no need to warm up the same lang twice
+  // If no SR support, just mark ready immediately
+  if (!SR) { markAllReady(); return; }
+
   const langs = [...new Set(speakers.map(s => s.langCode))];
+  let completed = 0;
+  const total = langs.length;
+
+  // Guaranteed fallback — no matter what, mark ready after 3 seconds
+  const fallback = setTimeout(() => markAllReady(), 3000);
+
   langs.forEach((lang, i) => {
     setTimeout(() => {
       try {
@@ -918,12 +934,21 @@ function warmUpMic() {
         r.lang = lang;
         r.continuous = false;
         r.interimResults = false;
-        r.onstart = () => { setTimeout(() => { try { r.stop(); } catch(e) {} }, 300); };
-        r.onerror = () => {};
-        r.onend = () => {};
+        r.onstart = () => { setTimeout(() => { try { r.stop(); } catch(e) {} }, 200); };
+        r.onerror = () => {
+          completed++;
+          if (completed >= total) { clearTimeout(fallback); markAllReady(); }
+        };
+        r.onend = () => {
+          completed++;
+          if (completed >= total) { clearTimeout(fallback); markAllReady(); }
+        };
         r.start();
-      } catch(e) {}
-    }, i * 400); // stagger slightly so they don't all fire at once
+      } catch(e) {
+        completed++;
+        if (completed >= total) { clearTimeout(fallback); markAllReady(); }
+      }
+    }, i * 300);
   });
 }
 
