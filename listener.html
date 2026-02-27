@@ -143,7 +143,7 @@
   <div class="join-card">
     <div class="join-logo">🌐</div>
     <h1>Meeting Translator</h1>
-    <p>Enter the room code your teacher shared with you, then choose your language.</p>
+    <p>Enter the room code your speaker shared with you, then choose your language.</p>
 
     <div class="field">
       <label>Room Code</label>
@@ -190,14 +190,14 @@
 
     <div class="translation-hero">
       <div class="th-lang" id="th-lang">Your Language</div>
-      <div class="th-text waiting" id="th-text">Waiting for the teacher to speak...</div>
+      <div class="th-text waiting" id="th-text">Waiting for the speaker......</div>
       <div class="speak-row">
         <button class="speak-big" onclick="speakCurrent()">🔊 Read aloud</button>
       </div>
     </div>
 
     <div class="original-card">
-      <div class="orig-label">Original (teacher said)</div>
+      <div class="orig-label">Original (speaker said)</div>
       <div class="orig-text" id="orig-text">—</div>
     </div>
 
@@ -273,7 +273,7 @@ window.joinRoom=async function(){
     document.getElementById('m-room-tag').textContent=room;
     document.getElementById('th-lang').textContent=lang;
     document.getElementById('m-lang-select').value=lang;
-    setStatus('ok','Connected — waiting for teacher');
+    setStatus('ok','Connected — waiting for speaker');
 
     // Cleanup on close
     window.addEventListener('beforeunload',()=>{
@@ -290,7 +290,7 @@ function handleUpdate(data){
   const translation=data.translations[myLang];
   if(!translation){
     // Language not translated this round — show a note
-    setStatus('warn',`"${myLang}" wasn't in this translation batch. Ask the teacher to add it.`);
+    setStatus('warn',`"${myLang}" wasn't in this translation batch. Ask the speaker to add it.`);
     return;
   }
   currentTranslation=translation;
