@@ -194,6 +194,7 @@
       <div class="mode-toggle" id="input-mode-toggle">
         <button class="mtog active" id="mtog-toggle" onclick="setInputMode('toggle')">🎤 Toggle</button>
         <button class="mtog" id="mtog-ptt" onclick="setInputMode('ptt')">🖐 Hold to Talk</button>
+        <button class="mtog" id="mtog-type" onclick="setInputMode('type')">⌨️ Type</button>
       </div>
 
       <!-- Toggle mode (existing mic button) -->
@@ -211,6 +212,28 @@
           <span style="font-family:'DM Sans',sans-serif;font-size:.65rem;color:var(--muted)">HOLD</span>
         </button>
         <div class="ptt-sublabel" id="ptt-sublabel">Hold to speak, release to translate</div>
+      </div>
+
+      <!-- Type mode -->
+      <div id="type-wrap" style="display:none;flex-direction:column;gap:10px;width:100%;padding:4px 0">
+        <textarea id="type-input" rows="3"
+          placeholder="Type your message here, then press Send (or Ctrl+Enter)…"
+          style="width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);
+            background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;
+            font-size:.92rem;resize:vertical;box-sizing:border-box;line-height:1.5;outline:none"
+          onkeydown="handleTypeKey(event)"></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button onclick="clearTypeInput()"
+            style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);
+              background:transparent;color:var(--muted2);font-family:'DM Sans',sans-serif;
+              font-size:.82rem;cursor:pointer">Clear</button>
+          <button id="type-send-btn" onclick="sendTyped()"
+            style="padding:8px 22px;border-radius:8px;border:none;
+              background:linear-gradient(135deg,var(--accent),var(--accent2));
+              color:#fff;font-family:'DM Sans',sans-serif;font-size:.88rem;
+              font-weight:600;cursor:pointer">Send ↵</button>
+        </div>
+        <div class="mic-label" id="type-label" style="text-align:center">Connect to a room first</div>
       </div>
 
       <div class="mic-label" id="mic-label">Connect to a room first, then press mic</div>
@@ -464,10 +487,56 @@ window.setInputMode = function(mode) {
   inputMode = mode;
   document.getElementById('mtog-toggle').classList.toggle('active', mode === 'toggle');
   document.getElementById('mtog-ptt').classList.toggle('active', mode === 'ptt');
+  document.getElementById('mtog-type').classList.toggle('active', mode === 'type');
   document.getElementById('mic-toggle-section').style.display = mode === 'toggle' ? 'flex' : 'none';
   document.getElementById('ptt-wrap').classList.toggle('visible', mode === 'ptt');
-  if (mode === 'toggle' && isListening) { stopMic(); }
-  if (mode === 'ptt' && isListening) { stopMic(); }
+  document.getElementById('type-wrap').style.display = mode === 'type' ? 'flex' : 'none';
+  if ((mode === 'ptt' || mode === 'type') && isListening) { stopMic(); }
+  if (mode === 'type') {
+    setTimeout(() => document.getElementById('type-input')?.focus(), 50);
+  }
+};
+
+// ── Text input ──────────────────────────────────────────
+window.handleTypeKey = function(e) {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendTyped(); }
+};
+
+window.clearTypeInput = function() {
+  document.getElementById('type-input').value = '';
+  document.getElementById('type-input').focus();
+};
+
+window.sendTyped = async function() {
+  const box = document.getElementById('type-input');
+  const text = box.value.trim();
+  if (!text) return;
+  if (!connected) {
+    document.getElementById('type-label').textContent = '⚠️ Connect to a room first';
+    return;
+  }
+  const btn = document.getElementById('type-send-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Translating…';
+  document.getElementById('type-label').textContent = 'Translating…';
+
+  // Show in transcript box same as voice
+  const tb = document.getElementById('transcript');
+  tb.textContent = text;
+  tb.classList.remove('empty');
+
+  try {
+    await translateAndPush(text);
+    box.value = '';
+    document.getElementById('type-label').textContent = '✓ Sent';
+    setTimeout(() => { document.getElementById('type-label').textContent = 'Ready'; }, 2000);
+  } catch(e) {
+    document.getElementById('type-label').textContent = '⚠️ ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send ↵';
+    box.focus();
+  }
 };
 
 // ── Mic warmup ──────────────────────────────────────────
@@ -484,6 +553,8 @@ function markSpeakerReady() {
     pttBtn.style.borderColor = 'var(--success)';
     setTimeout(() => { pttBtn.style.borderColor = ''; }, 1500);
   }
+  const typeLabel = document.getElementById('type-label');
+  if (typeLabel) typeLabel.textContent = 'Ready';
 }
 
 function warmUpSpeakerMic() {
