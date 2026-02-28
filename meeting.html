@@ -565,6 +565,11 @@ window.setProvider = function(p) {
   document.querySelectorAll('.provider-field').forEach(f => f.classList.remove('active'));
   document.getElementById('pf-' + p).classList.add('active');
   localStorage.setItem('lt_provider', p);
+  // When switching to Chrome AI, drop any selected langs it doesn't support
+  if (p === 'chromeai') {
+    selectedLangs.forEach(l => { if (!LANG_TO_BCP47[l]) selectedLangs.delete(l); });
+  }
+  renderChips();
 };
 
 // ── Speaker management ─────────────────────────────────
@@ -643,13 +648,37 @@ function renderSpeakerSetupRows() {
 // ── Output language chips ──────────────────────────────
 function renderChips() {
   const g = document.getElementById('chip-grid'); g.innerHTML = '';
-  OUTPUT_PRESETS.forEach(lang => {
+  const isChromeAI = currentProvider === 'chromeai';
+  const visibleLangs = isChromeAI
+    ? OUTPUT_PRESETS.filter(l => LANG_TO_BCP47[l]) // only langs Chrome AI supports
+    : OUTPUT_PRESETS;
+
+  visibleLangs.forEach(lang => {
     const c = document.createElement('div');
     c.className = 'chip' + (selectedLangs.has(lang) ? ' on' : '');
     c.textContent = lang;
     c.onclick = () => { selectedLangs.has(lang) ? selectedLangs.delete(lang) : selectedLangs.add(lang); renderChips(); };
     g.appendChild(c);
   });
+
+  // Show a note when Chrome AI is active explaining the filtered list
+  const noteId = 'chrome-lang-note';
+  let note = document.getElementById(noteId);
+  if (isChromeAI) {
+    if (!note) {
+      note = document.createElement('div');
+      note.id = noteId;
+      note.style.cssText = 'font-size:.72rem;color:var(--muted);margin-top:8px';
+      note.textContent = 'Showing languages supported by Chrome AI. Switch provider to see all languages.';
+      g.parentElement.insertBefore(note, g.nextSibling);
+    }
+  } else {
+    if (note) note.remove();
+  }
+
+  // Hide the custom add-language row for Chrome AI (unsupported langs would just error)
+  const addRow = document.querySelector('.add-lang-row');
+  if (addRow) addRow.style.display = isChromeAI ? 'none' : '';
 }
 window.addLang = function() {
   const input = document.getElementById('custom-lang');
