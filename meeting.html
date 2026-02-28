@@ -361,6 +361,7 @@
       <div class="ptab" onclick="setProvider('openai')">GPT-4o <span class="pill">paid</span></div>
       <div class="ptab" onclick="setProvider('gemini')">Gemini <span class="pill">paid</span></div>
       <div class="ptab" onclick="setProvider('ollama')">Ollama <span class="pill free">free</span></div>
+      <div class="ptab" onclick="setProvider('chromeai')">Chrome AI <span class="pill free">free · built-in</span></div>
     </div>
 
     <div class="provider-field active" id="pf-anthropic">
@@ -392,6 +393,9 @@
           <input type="text" id="ollama-model" placeholder="qwen2.5:7b" />
         </div>
       </div>
+    </div>
+    <div class="provider-field" id="pf-chromeai">
+      <div class="field-note" id="chromeai-status" style="font-size:.85rem;line-height:1.5">Checking Chrome AI availability...</div>
     </div>
 
     <div class="field-single" style="margin-top:4px">
@@ -551,6 +555,7 @@ window.toggleStartBtn = function() {
 // ── Provider ───────────────────────────────────────────
 window.setProvider = function(p) {
   currentProvider = p;
+  if (p === 'chromeai') checkChromeAIAvailability();
   document.querySelectorAll('.ptab').forEach((t, i) => {
     t.classList.toggle('active', ['anthropic','openai','gemini','ollama'][i] === p);
   });
@@ -652,7 +657,7 @@ window.startMeeting = async function() {
   roomCode = document.getElementById('room-code').value.trim().toUpperCase();
   if (!roomCode) { setSetupStatus('Enter a room code', 'err'); return; }
   const key = getKey();
-  if (!key && currentProvider !== 'ollama') { setSetupStatus('Enter an API key', 'err'); return; }
+  if (!key && currentProvider !== 'ollama' && currentProvider !== 'chromeai') { setSetupStatus('Enter an API key', 'err'); return; }
   if (selectedLangs.size === 0) { setSetupStatus('Select at least one output language', 'err'); return; }
 
   // Save keys
@@ -848,6 +853,7 @@ async function translateAndPush(sp, text) {
     if      (currentProvider === 'anthropic') translations = await callAnthropic(prompt);
     else if (currentProvider === 'openai')    translations = await callOpenAI(prompt);
     else if (currentProvider === 'gemini')    translations = await callGemini(prompt);
+    else if (currentProvider === 'chromeai')  translations = await callChromeAI(text, allLangs, sp.langCode.split('-')[0]);
     else                                      translations = await callOllama(prompt);
 
     allLangs.forEach(lang => {
@@ -978,6 +984,7 @@ function setSetupStatus(msg, type) {
 }
 function getKey() {
   if (currentProvider === 'ollama') return document.getElementById('key-ollama').value.trim() || 'http://localhost:11434';
+  if (currentProvider === 'chromeai') return '';
   return document.getElementById('key-' + currentProvider).value.trim() ||
          localStorage.getItem('lt_key_' + currentProvider) || '';
 }
@@ -1087,6 +1094,71 @@ window.endMeeting = function() {
 };
 
 // ── API calls ──────────────────────────────────────────
+// ── Chrome Built-in Translator API ─────────────────────
+const chromeTranslatorCache = {};
+
+async function callChromeAI(text, targetLangs, srcCode) {
+  if (!('Translator' in self)) throw new Error('Chrome AI Translator not available on this device/browser.');
+
+  const langToBCP47 = {
+    'English':'en','Swedish':'sv','Arabic':'ar','Chinese':'zh','Dutch':'nl',
+    'French':'fr','German':'de','Greek':'el','Hindi':'hi','Indonesian':'id',
+    'Italian':'it','Japanese':'ja','Korean':'ko','Malay':'ms','Norwegian':'no',
+    'Persian':'fa','Polish':'pl','Portuguese':'pt','Romanian':'ro','Russian':'ru',
+    'Spanish':'es','Turkish':'tr','Ukrainian':'uk','Urdu':'ur','Vietnamese':'vi'
+  };
+
+  const results = {};
+  await Promise.all(targetLangs.map(async (displayLang) => {
+    const tgtCode = langToBCP47[displayLang];
+    if (!tgtCode) { results[displayLang] = `(unsupported: ${displayLang})`; return; }
+    if (tgtCode === srcCode) { results[displayLang] = text; return; }
+
+    const cacheKey = `${srcCode}->${tgtCode}`;
+    try {
+      if (!chromeTranslatorCache[cacheKey]) {
+        const avail = await Translator.availability({ sourceLanguage: srcCode, targetLanguage: tgtCode });
+        if (avail === 'unavailable') throw new Error(`${srcCode}→${tgtCode} not supported`);
+        chromeTranslatorCache[cacheKey] = await Translator.create({
+          sourceLanguage: srcCode,
+          targetLanguage: tgtCode
+        });
+      }
+      results[displayLang] = await chromeTranslatorCache[cacheKey].translate(text);
+    } catch(e) {
+      results[displayLang] = `(error: ${e.message})`;
+    }
+  }));
+  return results;
+}
+
+async function checkChromeAIAvailability() {
+  const el = document.getElementById('chromeai-status');
+  if (!el) return;
+  if (!('Translator' in self)) {
+    el.innerHTML = '❌ <strong>Chrome AI not available.</strong> Requires Chrome 138+ on Chromebook Plus with flags enabled:<br>' +
+      '<code>chrome://flags/#optimization-guide-on-device-model</code> → Enabled<br>' +
+      '<code>chrome://flags/#language-detection-api</code> → Enabled<br>Then relaunch Chrome.';
+    el.style.color = 'var(--danger)';
+    return;
+  }
+  el.innerHTML = '⏳ Checking...';
+  try {
+    const avail = await Translator.availability({ sourceLanguage: 'en', targetLanguage: 'sv' });
+    if (avail === 'unavailable') {
+      el.innerHTML = '⚠️ Chrome AI present but en→sv unavailable. Try checking <code>chrome://on-device-translation-internals/</code>';
+    } else if (avail === 'downloadable') {
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Language models download on first use (~50–200MB per pair). No API key needed — fully offline after download.';
+      el.style.color = 'var(--success, #22c55e)';
+    } else {
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models already available. Fully offline, no API key needed.';
+      el.style.color = 'var(--success, #22c55e)';
+    }
+  } catch(e) {
+    el.innerHTML = `⚠️ Check failed: ${e.message}`;
+  }
+}
+
 function parseJSON(raw) {
   const m = raw.trim().match(/\{[\s\S]*\}/);
   if (!m) throw new Error('No JSON in response');
