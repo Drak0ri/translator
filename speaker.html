@@ -193,7 +193,7 @@
       <!-- Mode toggle -->
       <div class="mode-toggle" id="input-mode-toggle">
         <button class="mtog active" id="mtog-toggle" onclick="setInputMode('toggle')">🎤 Toggle</button>
-        <button class="mtog" id="mtog-ptt" onclick="setInputMode('ptt')">🖐 Hold to Talk</button>
+        <button class="mtog" id="mtog-ptt" onclick="setInputMode('ptt')">⎵ Space to Talk</button>
         <button class="mtog" id="mtog-type" onclick="setInputMode('type')">⌨️ Type</button>
       </div>
 
@@ -209,9 +209,9 @@
           ontouchstart="startPTT()" ontouchend="stopPTT()"
           onmouseleave="stopPTT()">
           🎤
-          <span style="font-family:'DM Sans',sans-serif;font-size:.65rem;color:var(--muted)">HOLD</span>
+          <span style="font-family:'DM Sans',sans-serif;font-size:.65rem;color:var(--muted)">SPACE</span>
         </button>
-        <div class="ptt-sublabel" id="ptt-sublabel">Hold to speak, release to translate</div>
+        <div class="ptt-sublabel" id="ptt-sublabel">Hold SPACE or click · release to translate</div>
       </div>
 
       <!-- Type mode -->
@@ -497,6 +497,27 @@ window.setInputMode = function(mode) {
   }
 };
 
+// ── Spacebar PTT ────────────────────────────────────────
+(function() {
+  let spaceHeld = false;
+  document.addEventListener('keydown', e => {
+    if (e.code !== 'Space' || inputMode !== 'ptt') return;
+    // Don't fire if user is typing in any input/textarea
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (spaceHeld) return; // already held
+    e.preventDefault();
+    spaceHeld = true;
+    startPTT();
+  });
+  document.addEventListener('keyup', e => {
+    if (e.code !== 'Space' || !spaceHeld) return;
+    e.preventDefault();
+    spaceHeld = false;
+    stopPTT();
+  });
+})();
+
 // ── Text input ──────────────────────────────────────────
 window.handleTypeKey = function(e) {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendTyped(); }
@@ -542,11 +563,11 @@ window.sendTyped = async function() {
 // ── Mic warmup ──────────────────────────────────────────
 function markSpeakerReady() {
   const label = document.getElementById('mic-label');
-  if (label) label.textContent = inputMode === 'toggle' ? 'Press mic to start speaking' : 'Hold button to speak';
+  if (label) label.textContent = inputMode === 'toggle' ? 'Press mic to start speaking' : 'Hold SPACE or click button to speak';
   const psub = document.getElementById('ptt-sublabel');
   if (psub) {
-    psub.textContent = '✓ Ready — hold to speak, release to translate';
-    setTimeout(() => { psub.textContent = 'Hold to speak, release to translate'; }, 2000);
+    psub.textContent = '✓ Ready — hold SPACE or click · release to translate';
+    setTimeout(() => { psub.textContent = 'Hold SPACE or click · release to translate'; }, 2000);
   }
   const pttBtn = document.getElementById('ptt-big');
   if (pttBtn) {
@@ -609,19 +630,19 @@ window.startPTT = function() {
     box.textContent = final || interim;
     if (final.trim().length > 0) pttFinalText = final.trim();
   };
-  pttRecognition.onerror = () => { pttActive = false; btn.className = 'ptt-big'; document.getElementById('ptt-sublabel').textContent = 'Hold to speak, release to translate'; };
+  pttRecognition.onerror = () => { pttActive = false; btn.className = 'ptt-big'; document.getElementById('ptt-sublabel').textContent = 'Hold SPACE or click · release to translate'; };
   pttRecognition.onend = () => {
     if (pttFinalText) {
       btn.className = 'ptt-big processing';
       document.getElementById('ptt-sublabel').textContent = 'Translating...';
       translateAndPush(pttFinalText).then(() => {
         btn.className = 'ptt-big';
-        document.getElementById('ptt-sublabel').textContent = 'Hold to speak, release to translate';
+        document.getElementById('ptt-sublabel').textContent = 'Hold SPACE or click · release to translate';
       });
       pttFinalText = '';
     } else {
       btn.className = 'ptt-big';
-      document.getElementById('ptt-sublabel').textContent = 'Hold to speak, release to translate';
+      document.getElementById('ptt-sublabel').textContent = 'Hold SPACE or click · release to translate';
     }
     pttActive = false;
   };
