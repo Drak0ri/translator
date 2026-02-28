@@ -444,6 +444,11 @@ window.connectRoom = async function() {
     warmUpSpeakerMic();
     document.getElementById('mic-label').textContent = 'Warming up mic...';
     document.getElementById('ptt-sublabel').textContent = 'Warming up mic...';
+    // Pre-warm Chrome AI translators (must happen inside user gesture = button click)
+    if (currentProvider === 'chromeai') {
+      const srcCode = document.getElementById('input-lang').value.split('-')[0];
+      prewarmChromeTranslators(srcCode, [...selectedLangs]);
+    }
   } catch(e) { setStatus('Firebase error: ' + e.message, 'err'); }
 };
 
@@ -707,44 +712,115 @@ async function translateAndPush(text) {
 
 // ── Chrome Built-in Translator API ─────────────────────
 // Cache translators so we don't recreate them for every phrase
-const chromeTranslatorCache = {};
+// ── Chrome Built-in Translator API ─────────────────────
+const chromeTranslatorCache = {};   // key: "en->sv"  value: Translator instance
+const chromeDownloadState = {};     // key: "en->sv"  value: 'downloading'|'ready'|'error'
+
+const LANG_TO_BCP47 = {
+  'English':'en','Swedish':'sv','Arabic':'ar','Chinese':'zh','Dutch':'nl',
+  'French':'fr','German':'de','Greek':'el','Hindi':'hi','Indonesian':'id',
+  'Italian':'it','Japanese':'ja','Korean':'ko','Malay':'ms','Norwegian':'no',
+  'Persian':'fa','Polish':'pl','Portuguese':'pt','Romanian':'ro','Russian':'ru',
+  'Spanish':'es','Turkish':'tr','Ukrainian':'uk','Urdu':'ur','Vietnamese':'vi'
+};
+
+// Called from connectRoom (a real user gesture) so Chrome allows downloads
+async function prewarmChromeTranslators(srcCode, targetLangs) {
+  if (!('Translator' in self)) return;
+  const pairs = targetLangs
+    .map(l => LANG_TO_BCP47[l])
+    .filter(t => t && t !== srcCode);
+
+  for (const tgtCode of pairs) {
+    const key = `${srcCode}->${tgtCode}`;
+    if (chromeTranslatorCache[key] || chromeDownloadState[key] === 'downloading') continue;
+    try {
+      const avail = await Translator.availability({ sourceLanguage: srcCode, targetLanguage: tgtCode });
+      if (avail === 'unavailable') continue;
+      chromeDownloadState[key] = 'downloading';
+      showChromeDownloadBar(srcCode, pairs);
+      chromeTranslatorCache[key] = await Translator.create({
+        sourceLanguage: srcCode,
+        targetLanguage: tgtCode,
+        monitor(m) {
+          m.addEventListener('downloadprogress', e => {
+            updateChromeDownloadBar(key, e.loaded);
+          });
+        }
+      });
+      chromeDownloadState[key] = 'ready';
+      updateChromeDownloadBar(key, 1);
+    } catch(e) {
+      chromeDownloadState[key] = 'error';
+      console.warn('Chrome AI prewarm failed for', key, e.message);
+    }
+  }
+  maybeHideChromeDownloadBar();
+}
+
+function showChromeDownloadBar(srcCode, pairs) {
+  let bar = document.getElementById('chrome-dl-bar');
+  if (bar) return; // already showing
+  bar = document.createElement('div');
+  bar.id = 'chrome-dl-bar';
+  bar.style.cssText = `position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    background:var(--card);border:1px solid var(--border);border-radius:12px;
+    padding:12px 18px;font-family:'DM Sans',sans-serif;font-size:.82rem;
+    color:var(--muted2);z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.3);
+    min-width:260px;text-align:center;`;
+  bar.innerHTML = `<div style="margin-bottom:6px">⬇️ Downloading Chrome AI language models…</div>
+    <div id="chrome-dl-progress" style="background:var(--surface);border-radius:6px;height:6px;overflow:hidden">
+      <div id="chrome-dl-fill" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .3s"></div>
+    </div>
+    <div id="chrome-dl-detail" style="margin-top:5px;font-size:.74rem;color:var(--muted)">Starting…</div>`;
+  document.body.appendChild(bar);
+}
+
+const pairProgress = {};
+function updateChromeDownloadBar(key, loaded) {
+  pairProgress[key] = loaded;
+  const fill = document.getElementById('chrome-dl-fill');
+  const detail = document.getElementById('chrome-dl-detail');
+  if (!fill) return;
+  const vals = Object.values(pairProgress);
+  const avg = vals.reduce((a,b) => a+b, 0) / vals.length;
+  fill.style.width = Math.round(avg * 100) + '%';
+  // Show which pairs are done
+  const done = Object.entries(pairProgress).filter(([,v]) => v >= 1).length;
+  if (detail) detail.textContent = `${done} of ${vals.length} language pair${vals.length > 1 ? 's' : ''} ready`;
+}
+
+function maybeHideChromeDownloadBar() {
+  const allDone = Object.values(chromeDownloadState).every(s => s === 'ready' || s === 'error');
+  if (!allDone) return;
+  const bar = document.getElementById('chrome-dl-bar');
+  if (!bar) return;
+  bar.innerHTML = `<div>✅ Chrome AI models ready</div>`;
+  setTimeout(() => bar.remove(), 2000);
+}
 
 async function callChromeAI(text, targetLangs) {
-  if (!('Translator' in self)) throw new Error('Chrome AI Translator not available. Ensure you are on Chrome 138+ with the flags enabled.');
-
-  const srcCode = document.getElementById('input-lang').value.split('-')[0]; // e.g. 'en'
-
-  // BCP-47 short codes for our lang display names
-  const langToBCP47 = {
-    'English':'en','Swedish':'sv','Arabic':'ar','Chinese':'zh','Dutch':'nl',
-    'French':'fr','German':'de','Greek':'el','Hindi':'hi','Indonesian':'id',
-    'Italian':'it','Japanese':'ja','Korean':'ko','Malay':'ms','Norwegian':'no',
-    'Persian':'fa','Polish':'pl','Portuguese':'pt','Romanian':'ro','Russian':'ru',
-    'Spanish':'es','Turkish':'tr','Ukrainian':'uk','Urdu':'ur','Vietnamese':'vi'
-  };
-
+  if (!('Translator' in self)) throw new Error('Chrome AI not available — check flags and device requirements.');
+  const srcCode = document.getElementById('input-lang').value.split('-')[0];
   const results = {};
+
   await Promise.all(targetLangs.map(async (displayLang) => {
-    const tgtCode = langToBCP47[displayLang];
+    const tgtCode = LANG_TO_BCP47[displayLang];
     if (!tgtCode) { results[displayLang] = `(unsupported: ${displayLang})`; return; }
     if (tgtCode === srcCode) { results[displayLang] = text; return; }
 
-    const cacheKey = `${srcCode}->${tgtCode}`;
+    const key = `${srcCode}->${tgtCode}`;
     try {
-      if (!chromeTranslatorCache[cacheKey]) {
-        const avail = await Translator.availability({ sourceLanguage: srcCode, targetLanguage: tgtCode });
-        if (avail === 'unavailable') throw new Error(`Language pair ${srcCode}→${tgtCode} not supported`);
-        chromeTranslatorCache[cacheKey] = await Translator.create({
-          sourceLanguage: srcCode,
-          targetLanguage: tgtCode,
-          monitor(m) {
-            m.addEventListener('downloadprogress', e => {
-              setMicLabel(`Downloading ${displayLang} model… ${Math.round(e.loaded * 100)}%`, 'active');
-            });
-          }
-        });
+      // Translator should already be cached from prewarm; if not (e.g. new lang added),
+      // this will fail with the gesture error — user should reconnect
+      if (!chromeTranslatorCache[key]) {
+        if (chromeDownloadState[key] === 'downloading') {
+          results[displayLang] = '(model downloading — try again in a moment)';
+          return;
+        }
+        throw new Error(`Model for ${displayLang} not ready. Reconnect to room to trigger download.`);
       }
-      results[displayLang] = await chromeTranslatorCache[cacheKey].translate(text);
+      results[displayLang] = await chromeTranslatorCache[key].translate(text);
     } catch(e) {
       results[displayLang] = `(error: ${e.message})`;
     }
@@ -756,27 +832,28 @@ async function checkChromeAIAvailability() {
   const el = document.getElementById('chromeai-status');
   if (!el) return;
   if (!('Translator' in self)) {
-    el.innerHTML = '❌ <strong>Chrome AI not available.</strong> Requires Chrome 138+ on Chromebook Plus with flags enabled:<br>' +
+    el.innerHTML = '❌ <strong>Chrome AI not available.</strong> Requires Chrome 138+ on Chromebook Plus.<br>' +
+      'Enable these flags then relaunch Chrome:<br>' +
       '<code>chrome://flags/#optimization-guide-on-device-model</code> → Enabled<br>' +
-      '<code>chrome://flags/#language-detection-api</code> → Enabled<br>Then relaunch Chrome.';
+      '<code>chrome://flags/#language-detection-api</code> → Enabled';
     el.style.color = 'var(--danger)';
     return;
   }
-  el.innerHTML = '⏳ Checking availability...';
+  el.innerHTML = '⏳ Checking...';
   try {
     const avail = await Translator.availability({ sourceLanguage: 'en', targetLanguage: 'sv' });
     if (avail === 'unavailable') {
-      el.innerHTML = '⚠️ Chrome AI present but en→sv pair unavailable. Try another language pair or check chrome://on-device-translation-internals/';
-      el.style.color = 'var(--warning, orange)';
-    } else if (avail === 'downloadable') {
-      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Language models will download on first use (~50–200MB per pair). No API key needed.';
-      el.style.color = 'var(--success, #22c55e)';
+      el.innerHTML = '⚠️ Chrome AI present but language pairs unavailable. Check <code>chrome://on-device-translation-internals/</code>';
+      el.style.color = 'orange';
+    } else if (avail === 'downloadable' || avail === 'downloading') {
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Language models download automatically when you Connect to Room. No API key needed.';
+      el.style.color = '#22c55e';
     } else {
-      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models already downloaded. No API key needed.';
-      el.style.color = 'var(--success, #22c55e)';
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models already available — fully offline, no API key needed.';
+      el.style.color = '#22c55e';
     }
   } catch(e) {
-    el.innerHTML = `⚠️ Chrome AI check failed: ${e.message}`;
+    el.innerHTML = `⚠️ Check failed: ${e.message}`;
   }
 }
 
