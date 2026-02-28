@@ -381,6 +381,10 @@ window.setProvider = function(p) {
   document.querySelectorAll('.provider-field').forEach(f => f.classList.remove('active'));
   document.getElementById('pf-' + p).classList.add('active');
   localStorage.setItem('iesv_provider', p);
+  if (p === 'chromeai') {
+    selectedLangs.forEach(l => { if (!LANG_TO_BCP47[l]) selectedLangs.delete(l); });
+  }
+  if (document.getElementById('chip-grid')) renderChips();
 };
 
 // ── Init ───────────────────────────────────────────────
@@ -480,11 +484,33 @@ function setStatus(msg, type) {
 // ── Language chips ─────────────────────────────────────
 function renderChips() {
   const g = document.getElementById('chip-grid'); g.innerHTML = '';
-  PRESETS.forEach(lang => {
+  const isChromeAI = currentProvider === 'chromeai';
+  const visibleLangs = isChromeAI
+    ? PRESETS.filter(l => LANG_TO_BCP47[l])
+    : PRESETS;
+
+  visibleLangs.forEach(lang => {
     const c = document.createElement('div');
     c.className = 'chip' + (selectedLangs.has(lang) ? ' on' : '');
     c.textContent = lang; c.onclick = () => toggleLang(lang); g.appendChild(c);
   });
+
+  const noteId = 'chrome-lang-note';
+  let note = document.getElementById(noteId);
+  if (isChromeAI) {
+    if (!note) {
+      note = document.createElement('div');
+      note.id = noteId;
+      note.style.cssText = 'font-size:.72rem;color:var(--muted);margin-top:8px';
+      note.textContent = 'Showing languages supported by Chrome AI. Switch provider to see all languages.';
+      g.parentElement.insertBefore(note, g.nextSibling);
+    }
+  } else {
+    if (note) note.remove();
+  }
+
+  const addRow = document.querySelector('.add-lang-row');
+  if (addRow) addRow.style.display = isChromeAI ? 'none' : '';
 }
 function toggleLang(lang) {
   selectedLangs.has(lang) ? selectedLangs.delete(lang) : selectedLangs.add(lang);
