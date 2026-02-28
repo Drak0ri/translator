@@ -371,18 +371,21 @@
       <div class="field-single">
         <label>API Key</label>
         <input type="password" id="key-anthropic" placeholder="sk-ant-..." />
+        <div class="hint">Get at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys. Uses Claude Haiku. ~$0.75 per 30-min meeting (estimated).</div>
       </div>
     </div>
     <div class="provider-field" id="pf-openai">
       <div class="field-single">
         <label>API Key</label>
         <input type="password" id="key-openai" placeholder="sk-..." />
+        <div class="hint">Get at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a> → API Keys. Uses gpt-4o-mini. ~$0.15 per 30-min meeting (estimated).</div>
       </div>
     </div>
     <div class="provider-field" id="pf-gemini">
       <div class="field-single">
         <label>API Key</label>
         <input type="password" id="key-gemini" placeholder="AIzaSy..." />
+        <div class="hint">Get at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>. Uses gemini-2.5-flash. ~$0.15 per 30-min meeting (estimated).</div>
       </div>
     </div>
     <div class="provider-field" id="pf-ollama">
@@ -390,10 +393,12 @@
         <div>
           <label>Ollama URL</label>
           <input type="text" id="key-ollama" placeholder="http://localhost:11434" />
+          <div class="hint">Localhost if running on this machine. Use a Cloudflare Tunnel URL if Ollama is on another PC on the network.</div>
         </div>
         <div>
           <label>Model</label>
           <input type="text" id="ollama-model" placeholder="qwen2.5:7b" />
+          <div class="hint">Free — runs locally, no API costs.</div>
         </div>
       </div>
     </div>
