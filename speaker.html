@@ -3,240 +3,120 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Translator — Meeting</title>
+<title>Live Translator — Speaker</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%232563eb'/><stop offset='100%25' stop-color='%230ea5e9'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text y='.9em' font-size='72' x='50%25' text-anchor='middle'>🌐</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:#05080f; --surface:#0d1117; --card:#111927; --border:#1e2d45;
-    --accent:#2563eb; --accent2:#0ea5e9; --success:#10b981; --warn:#f59e0b; --danger:#ef4444;
-    --text:#e8f0ff; --muted:#4a6080; --muted2:#7a9ab8;
-    --s1:#2563eb; --s2:#059669; --s3:#d97706; --s4:#7c3aed;
-    --s1l:rgba(37,99,235,.12); --s2l:rgba(5,150,105,.12); --s3l:rgba(217,119,6,.12); --s4l:rgba(124,58,237,.12);
+    --bg:#05080f;--surface:#0d1117;--card:#111927;--border:#1e2d45;
+    --accent:#2563eb;--accent2:#0ea5e9;--success:#10b981;--warn:#f59e0b;--danger:#ef4444;
+    --text:#e8f0ff;--muted:#4a6080;--muted2:#7a9ab8;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
-  body::before{content:'';position:fixed;inset:0;
-    background:
-      radial-gradient(ellipse 70% 50% at 15% 10%,rgba(37,99,235,.06) 0%,transparent 60%),
-      radial-gradient(ellipse 60% 60% at 85% 90%,rgba(14,165,233,.05) 0%,transparent 60%);
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+  body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;
+    background:radial-gradient(ellipse 60% 40% at 20% 10%,rgba(37,99,235,.07) 0%,translistener 60%),
+               radial-gradient(ellipse 50% 50% at 80% 90%,rgba(14,165,233,.05) 0%,translistener 60%);
     pointer-events:none;z-index:0}
-
-  /* ── Header ── */
   header{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;
-    padding:16px 28px;border-bottom:1px solid var(--border);background:rgba(5,8,15,.85);backdrop-filter:blur(16px)}
-  .header-left{display:flex;align-items:center;gap:12px}
+    padding:18px 32px;border-bottom:1px solid var(--border);background:rgba(5,8,15,.85);backdrop-filter:blur(16px)}
+  .header-left{display:flex;align-items:center;gap:14px}
   .badge{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;
-    font-family:'Syne',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.1em;
-    padding:4px 10px;border-radius:6px}
-  header h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;letter-spacing:-.02em}
-  .header-right{display:flex;align-items:center;gap:12px}
-  .room-chip{font-family:'DM Mono',monospace;font-size:.82rem;color:var(--accent2);
-    background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.2);padding:5px 13px;border-radius:8px}
-  .nav-link{font-size:.78rem;color:var(--muted2);text-decoration:none;
-    border:1px solid var(--border);padding:5px 12px;border-radius:8px;transition:all .2s}
-  .nav-link:hover{color:var(--accent2);border-color:var(--accent2)}
-  .conn-pill{font-size:.75rem;color:var(--muted2);display:flex;align-items:center;gap:5px}
-  .dot{width:6px;height:6px;border-radius:50%;background:var(--success);animation:blink 2s infinite}
+    font-family:'Syne',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.1em;padding:4px 10px;border-radius:6px}
+  header h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;letter-spacing:-.02em}
+  .room-display{font-family:'DM Mono',monospace;font-size:.85rem;color:var(--accent2);
+    background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.2);padding:6px 14px;border-radius:8px}
+  .conn-count{font-size:.8rem;color:var(--muted2);display:flex;align-items:center;gap:6px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:blink 2s infinite}
   @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-
-  /* ── Screens ── */
-  #setup-screen{position:relative;z-index:1;max-width:680px;margin:0 auto;padding:32px 24px}
-  #meeting-screen{display:none;position:relative;z-index:1}
-
-  /* ── Setup ── */
-  .setup-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1.6rem;
-    letter-spacing:-.03em;margin-bottom:6px}
-  .setup-sub{font-size:.88rem;color:var(--muted2);margin-bottom:28px;line-height:1.6}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px}
-  .card-title{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;text-transform:uppercase;
+  .main{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:28px 24px;display:flex;flex-direction:column;gap:20px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px}
+  .card-title{font-family:'Syne',sans-serif;font-size:.75rem;font-weight:700;text-transform:uppercase;
     letter-spacing:.1em;color:var(--muted2);margin-bottom:14px}
-  label{display:block;font-size:.76rem;color:var(--muted2);margin-bottom:5px}
+  label{display:block;font-size:.78rem;color:var(--muted2);margin-bottom:6px}
   input,select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;
-    padding:10px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.87rem;
-    outline:none;transition:border-color .2s}
+    padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;transition:border-color .2s}
   input:focus,select:focus{border-color:var(--accent)}
-  input[type=password]{font-family:'DM Mono',monospace}
-  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-  @media(max-width:560px){.field-row{grid-template-columns:1fr}}
-  .field-single{margin-bottom:12px}
-
-  /* Speaker setup rows */
-  .speaker-rows{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
-  .speaker-setup-row{display:flex;align-items:center;gap:10px;background:var(--surface);
-    border:1px solid var(--border);border-radius:12px;padding:12px 14px}
-  .speaker-num{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;
-    justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:.8rem;
-    color:white;flex-shrink:0}
-  .s-num-1{background:var(--s1)}.s-num-2{background:var(--s2)}.s-num-3{background:var(--s3)}.s-num-4{background:var(--s4)}
-  .speaker-setup-row input{flex:1;background:transparent;border:none;border-bottom:1px solid var(--border);
-    border-radius:0;padding:4px 0;font-size:.85rem}
-  .speaker-setup-row input:focus{border-bottom-color:var(--accent);background:transparent}
-  .speaker-lang-sel{flex:1.4}
-  .speaker-lang-sel select{padding:6px 10px;font-size:.83rem}
-  .remove-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;
-    font-size:1rem;border-radius:4px;transition:color .15s}
-  .remove-btn:hover{color:var(--danger)}
-  .add-speaker-btn{background:none;border:1.5px dashed var(--border);border-radius:10px;
-    padding:10px;width:100%;color:var(--muted2);font-family:'DM Sans',sans-serif;font-size:.82rem;
-    cursor:pointer;transition:all .2s}
-  .add-speaker-btn:hover{border-color:var(--accent2);color:var(--accent2)}
-
-
-  /* Provider */
-  .provider-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
-  .ptab{background:var(--surface);border:1px solid var(--border);border-radius:8px;
-    padding:7px 14px;font-size:.8rem;cursor:pointer;transition:all .15s;
-    font-family:'Syne',sans-serif;font-weight:700;color:var(--muted2);user-select:none}
-  .ptab:hover{border-color:var(--accent2);color:var(--text)}
-  .ptab.active{background:rgba(37,99,235,.12);border-color:var(--accent);color:#93c5fd}
-  .pill{font-size:.62rem;padding:2px 5px;border-radius:4px;margin-left:4px;
-    background:rgba(245,158,11,.1);color:var(--warn);vertical-align:middle}
-  .pill.free{background:rgba(16,185,129,.12);color:var(--success)}
-  .provider-field{display:none}.provider-field.active{display:block}
-  .hint{font-size:.72rem;color:var(--muted);margin-top:4px;line-height:1.4}
-  .hint a{color:var(--accent2);text-decoration:none}.hint a:hover{text-decoration:underline}
-  code{font-family:'DM Mono',monospace;font-size:.82em;color:var(--accent2)}
-
-  /* Output language chips */
-  .chip-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
-  .chip{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:6px 12px;
-    font-size:.8rem;cursor:pointer;transition:all .15s;user-select:none}
-  .chip:hover{border-color:var(--accent)}
-  .chip.on{background:rgba(37,99,235,.12);border-color:var(--accent);color:#93c5fd}
-  .add-lang-row{display:flex;gap:8px;margin-top:8px}
-  .add-lang-row input{flex:1}
-
-  /* Buttons */
+  input[type=password]{font-family:'DM Mono',monospace;letter-spacing:.05em}
   .btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;border:none;
     border-radius:10px;padding:11px 20px;font-family:'Syne',sans-serif;font-weight:700;font-size:.82rem;
-    cursor:pointer;transition:opacity .2s,transform .1s}
-  .btn:hover{opacity:.88}.btn:active{transform:scale(.97)}
-  .btn-row{display:flex;gap:10px;margin-top:4px;align-items:center}
-  .spill{font-size:.78rem;padding:5px 11px;border-radius:20px;display:inline-block}
+    cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
+  .btn:hover{opacity:.88}.btn:active{transform:scale(.97)}.btn:disabled{opacity:.35;cursor:not-allowed}
+  .btn-row{display:flex;gap:10px;margin-top:14px;align-items:center}
+  .btn-ghost{background:none;border:1px solid var(--border);color:var(--muted2);
+    font-family:'DM Sans',sans-serif;font-size:.82rem;padding:9px 16px;border-radius:9px;cursor:pointer}
+  .btn-ghost:hover{background:var(--surface);color:var(--text)}
+  .spill{font-size:.8rem;padding:5px 12px;border-radius:20px;display:inline-block}
   .spill.ok{background:rgba(16,185,129,.1);color:var(--success);border:1px solid rgba(16,185,129,.2)}
   .spill.warn{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.2)}
   .spill.err{background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.2)}
 
-  /* ════════════════════════════════════════
-     MEETING SCREEN
-  ════════════════════════════════════════ */
+  /* Provider tabs */
+  .provider-tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+  .ptab{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:8px 16px;font-size:.82rem;cursor:pointer;transition:all .15s;
+    font-family:'Syne',sans-serif;font-weight:700;color:var(--muted2);user-select:none}
+  .ptab:hover{border-color:var(--accent2);color:var(--text)}
+  .ptab.active{background:rgba(37,99,235,.12);border-color:var(--accent);color:#93c5fd}
+  .pill{font-size:.65rem;padding:2px 6px;border-radius:4px;margin-left:5px;
+    background:rgba(16,185,129,.15);color:var(--success);vertical-align:middle;font-weight:600}
+  .pill.paid{background:rgba(245,158,11,.1);color:var(--warn)}
 
-  /* Display area */
-  #display-area{
-    background:var(--card);border-bottom:1px solid var(--border);
-    min-height:200px;padding:24px 28px;position:relative;overflow:hidden;
-    transition:min-height .3s;
-  }
-  #display-area.projector-mode{min-height:60vh;display:flex;flex-direction:column;justify-content:center}
-  .display-empty{color:var(--muted);font-style:italic;font-size:1rem;text-align:center;
-    padding:40px 0;display:flex;align-items:center;justify-content:center;gap:10px}
-  .display-source{display:inline-flex;align-items:center;gap:7px;margin-bottom:12px}
-  .source-num{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;
-    justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:.72rem;color:white}
-  .source-name{font-size:.78rem;color:var(--muted2)}
-  .display-original{font-size:.88rem;color:var(--muted2);font-style:italic;margin-bottom:16px;
-    padding-bottom:14px;border-bottom:1px solid var(--border)}
-  .display-original.projector{font-size:1.1rem}
-  .trans-grid-meet{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
-  .trans-grid-meet.projector{display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
-  .tcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px;min-width:200px;max-width:320px;flex:1;
+  /* Provider fields */
+  .provider-field{display:none}
+  .provider-field.active{display:block}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  @media(max-width:580px){.field-row{grid-template-columns:1fr}}
+  .field-single{margin-bottom:14px}
+  .hint{font-size:.74rem;color:var(--muted);margin-top:5px;line-height:1.5}
+  .hint a{color:var(--accent2);text-decoration:none}.hint a:hover{text-decoration:underline}
+  code{font-family:'DM Mono',monospace;font-size:.82em;color:var(--accent2)}
+
+  /* Mic */
+  .mic-area{display:flex;flex-direction:column;align-items:center;gap:18px;padding:10px 0}
+  .lang-row{display:flex;align-items:center;gap:10px}
+  .lang-row label{margin:0;font-size:.83rem;color:var(--muted2);white-space:nowrap}
+  .lang-row select{width:auto}
+  .mic-btn{width:96px;height:96px;border-radius:50%;background:linear-gradient(145deg,var(--accent),var(--accent2));
+    border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2.2rem;
+    transition:all .2s;padding:0}
+  .mic-btn.listening{background:linear-gradient(145deg,#dc2626,#ea580c);animation:mpulse 1.4s infinite}
+  .mic-btn.processing{background:linear-gradient(145deg,var(--accent),#7c3aed);animation:mglow .8s infinite alternate}
+  @keyframes mpulse{0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)}70%{box-shadow:0 0 0 24px rgba(220,38,38,0)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
+  @keyframes mglow{from{box-shadow:0 0 16px rgba(37,99,235,.5)}to{box-shadow:0 0 32px rgba(124,58,237,.7)}}
+  .mic-label{font-size:.88rem;color:var(--muted2)}.mic-label.active{color:var(--accent2)}.mic-label.err{color:var(--danger)}
+  .transcript-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    padding:14px 16px;font-size:.92rem;line-height:1.7;min-height:56px;color:var(--text);width:100%}
+  .transcript-box.empty{color:var(--muted);font-style:italic}
+
+  /* Chips */
+  .chip-grid{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 13px;
+    font-size:.82rem;cursor:pointer;transition:all .15s;user-select:none}
+  .chip:hover{border-color:var(--accent)}
+  .chip.on{background:rgba(37,99,235,.12);border-color:var(--accent);color:#93c5fd}
+  .add-lang-row{display:flex;gap:8px;margin-top:10px}
+  .add-lang-row input{flex:1}
+
+  /* Trans preview */
+  .trans-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+  .trans-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;
     position:relative;overflow:hidden}
-  .tcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  .trans-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;
     background:linear-gradient(90deg,var(--accent),var(--accent2));transform:scaleX(0);
-    transform-origin:left;transition:transform .4s}
-  .tcard.flash::before{transform:scaleX(1)}
-  .tcard-lang{font-family:'Syne',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.08em;
-    text-transform:uppercase;color:var(--accent2);margin-bottom:5px}
-  .tcard-text{font-size:.86rem;line-height:1.6;color:var(--text);min-height:32px}
-  .tcard-text.loading{color:var(--muted);font-style:italic}
-  .tcard-text.projector{font-size:1.1rem}
-
-  /* Speaker buttons area */
-  #speakers-area{padding:20px 24px;display:flex;flex-direction:column;gap:0}
-
-  /* Individual speaker panel */
-  .speaker-panel{border-bottom:1px solid var(--border);padding:16px 0}
-  .speaker-panel:last-child{border-bottom:none}
-  .sp-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-  .sp-badge{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;
-    justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:.85rem;
-    color:white;flex-shrink:0;transition:transform .15s}
-  .sp-badge-1{background:var(--s1)}.sp-badge-2{background:var(--s2)}
-  .sp-badge-3{background:var(--s3)}.sp-badge-4{background:var(--s4)}
-  .sp-info{flex:1}
-  .sp-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem}
-  .sp-lang{font-size:.75rem;color:var(--muted2);margin-top:1px}
-  .sp-status{font-size:.74rem;padding:3px 9px;border-radius:12px;font-weight:500}
-  .sp-status.idle{background:rgba(74,96,128,.1);color:var(--muted)}
-  .sp-status.recording{background:rgba(220,38,38,.12);color:#f87171;animation:spulse 1.2s infinite}
-  .sp-status.translating{background:rgba(37,99,235,.1);color:#93c5fd}
-  .sp-status.done{background:rgba(16,185,129,.1);color:var(--success)}
-  @keyframes spulse{0%,100%{opacity:1}50%{opacity:.5}}
-
-  /* PTT button */
-  .ptt-btn{
-    width:100%;border:2px solid var(--border);border-radius:14px;
-    padding:18px;background:var(--surface);color:var(--muted2);
-    font-family:'Syne',sans-serif;font-weight:700;font-size:.88rem;
-    cursor:pointer;transition:all .15s;user-select:none;
-    display:flex;align-items:center;justify-content:center;gap:10px;
-    -webkit-tap-highlight-color:transparent;touch-action:manipulation;
-  }
-  .ptt-btn:hover{background:var(--card)}
-  .ptt-btn.recording{
-    background:rgba(220,38,38,.08);border-color:#dc2626;color:#f87171;
-    animation:rring 1.4s infinite;
-  }
-  .ptt-btn.translating{background:rgba(37,99,235,.08);border-color:var(--accent);color:#93c5fd}
-  .ptt-btn .ptt-icon{font-size:1.4rem;transition:transform .15s}
-  .ptt-btn.recording .ptt-icon{transform:scale(1.15)}
-  @keyframes rring{
-    0%{box-shadow:0 0 0 0 rgba(220,38,38,.3)}
-    70%{box-shadow:0 0 0 12px rgba(220,38,38,0)}
-    100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}
-  }
-  /* Color variants */
-  .ptt-btn.s1.recording{background:rgba(37,99,235,.1);border-color:var(--s1);color:#93c5fd;animation:rring1 1.4s infinite}
-  .ptt-btn.s2.recording{background:rgba(5,150,105,.1);border-color:var(--s2);color:#6ee7b7;animation:rring2 1.4s infinite}
-  .ptt-btn.s3.recording{background:rgba(217,119,6,.1);border-color:var(--s3);color:#fcd34d;animation:rring3 1.4s infinite}
-  .ptt-btn.s4.recording{background:rgba(124,58,237,.1);border-color:var(--s4);color:#c4b5fd;animation:rring4 1.4s infinite}
-  @keyframes rring1{0%{box-shadow:0 0 0 0 rgba(37,99,235,.4)}70%{box-shadow:0 0 0 12px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
-  @keyframes rring2{0%{box-shadow:0 0 0 0 rgba(5,150,105,.4)}70%{box-shadow:0 0 0 12px rgba(5,150,105,0)}100%{box-shadow:0 0 0 0 rgba(5,150,105,0)}}
-  @keyframes rring3{0%{box-shadow:0 0 0 0 rgba(217,119,6,.4)}70%{box-shadow:0 0 0 12px rgba(217,119,6,0)}100%{box-shadow:0 0 0 0 rgba(217,119,6,0)}}
-  @keyframes rring4{0%{box-shadow:0 0 0 0 rgba(124,58,237,.4)}70%{box-shadow:0 0 0 12px rgba(124,58,237,0)}100%{box-shadow:0 0 0 0 rgba(124,58,237,0)}}
-
-  /* Mode-specific layouts */
-  .projector-mode-wrap #speakers-area{
-    max-width:860px;margin:0 auto;
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-    gap:16px;padding:24px;
-  }
-  .projector-mode-wrap .speaker-panel{
-    border:1px solid var(--border);border-radius:16px;padding:16px;
-    background:var(--card);
-  }
-  .projector-mode-wrap .speaker-panel .sp-header{margin-bottom:10px}
+    transition:transform .4s;transform-origin:left}
+  .trans-card.flash::after{transform:scaleX(1)}
+  .tl{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--accent2);margin-bottom:6px;text-transform:uppercase}
+  .tt{font-size:.88rem;line-height:1.6;color:var(--text);min-height:36px}
+  .tt.loading{color:var(--muted);font-style:italic}
 
   /* History */
-  #history-panel{border-top:1px solid var(--border);padding:16px 24px;max-height:220px;overflow-y:auto}
-  .history-title{font-family:'Syne',sans-serif;font-size:.7rem;font-weight:700;text-transform:uppercase;
-    letter-spacing:.1em;color:var(--muted);margin-bottom:10px}
-  .h-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);align-items:flex-start}
-  .h-item:last-child{border-bottom:none}
-  .h-num{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;
-    font-family:'Syne',sans-serif;font-weight:800;font-size:.65rem;color:white;flex-shrink:0;margin-top:2px}
-  .h-num-1{background:var(--s1)}.h-num-2{background:var(--s2)}.h-num-3{background:var(--s3)}.h-num-4{background:var(--s4)}
-  .h-text{font-size:.82rem;color:var(--muted2);line-height:1.5;flex:1}
-  .h-time{font-size:.7rem;color:var(--muted);white-space:nowrap;margin-top:2px}
-
-  /* Projector toggle btn */
-  .projector-toggle{background:none;border:1px solid var(--border);border-radius:8px;
-    color:var(--muted2);font-family:'DM Sans',sans-serif;font-size:.78rem;padding:6px 12px;cursor:pointer}
-  .projector-toggle:hover{border-color:var(--accent2);color:var(--accent2)}
-
-  ::-webkit-scrollbar{width:4px}
-  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+  .history{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+  .hi{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 13px}
+  .hi-meta{font-size:.72rem;color:var(--muted);margin-bottom:3px}
+  .hi-text{font-size:.85rem}
+  .empty-note{color:var(--muted);font-size:.82rem;font-style:italic;text-align:center;padding:16px}
+  ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:translistener}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
   /* ── Mode nav ── */
   .mode-nav{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;
@@ -250,232 +130,225 @@
   .mnav-btn.active{color:white;background:linear-gradient(135deg,rgba(37,99,235,.3),rgba(14,165,233,.2));
     border-color:rgba(14,165,233,.5);box-shadow:0 0 12px rgba(14,165,233,.15)}
 
-  /* Disclaimer */
-  .disclaimer{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);
-    border-radius:12px;padding:16px 18px;margin-bottom:16px}
-  .disclaimer-title{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;
-    text-transform:uppercase;letter-spacing:.1em;color:var(--warn);margin-bottom:8px;
-    display:flex;align-items:center;gap:6px}
-  .disclaimer p{font-size:.8rem;color:var(--muted2);line-height:1.6;margin-bottom:12px}
-  .disclaimer label{display:flex;align-items:center;gap:10px;cursor:pointer;
-    font-size:.82rem;color:var(--text);font-weight:500}
-  .disclaimer input[type=checkbox]{width:16px;height:16px;accent-color:var(--warn);
-    cursor:pointer;flex-shrink:0}
+  /* Mode toggle */
+  .mode-toggle{display:flex;gap:6px;margin-bottom:16px;background:var(--surface);
+    border:1px solid var(--border);border-radius:10px;padding:4px}
+  .mtog{flex:1;padding:8px;border-radius:7px;border:none;background:none;
+    font-family:'Syne',sans-serif;font-weight:700;font-size:.75rem;letter-spacing:.04em;
+    color:var(--muted2);cursor:pointer;transition:all .2s;text-align:center}
+  .mtog:hover{color:var(--text)}
+  .mtog.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;
+    box-shadow:0 2px 8px rgba(37,99,235,.3)}
 
-  /* Download btn */
-  .dl-btn{background:none;border:1px solid var(--border);border-radius:8px;
-    color:var(--muted2);font-family:'DM Sans',sans-serif;font-size:.78rem;
-    padding:6px 14px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
-  .dl-btn:hover{border-color:var(--success);color:var(--success)}
+  /* PTT button */
+  .ptt-wrap{display:none;flex-direction:column;align-items:center;gap:10px;padding:8px 0}
+  .ptt-wrap.visible{display:flex}
+  .ptt-big{width:140px;height:140px;border-radius:50%;border:3px solid var(--border);
+    background:var(--surface);font-size:2.2rem;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    transition:all .15s;user-select:none;-webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;}
+  .ptt-big:hover{background:var(--card);border-color:var(--accent2)}
+  .ptt-big.recording{background:rgba(220,38,38,.1);border-color:#dc2626;
+    box-shadow:0 0 0 0 rgba(220,38,38,.4);animation:pring 1.4s infinite}
+  .ptt-big.processing{background:rgba(37,99,235,.1);border-color:var(--accent)}
+  @keyframes pring{
+    0%{box-shadow:0 0 0 0 rgba(220,38,38,.4)}
+    70%{box-shadow:0 0 0 20px rgba(220,38,38,0)}
+    100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
+  .ptt-sublabel{font-size:.75rem;color:var(--muted);font-family:'DM Sans',sans-serif}
 
-  /* Modal overlay */
-  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
-    z-index:100;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px)}
-  .modal-overlay.open{display:flex}
-  .modal{background:var(--card);border:1px solid var(--border);border-radius:20px;
-    padding:28px;max-width:420px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5)}
-  .modal h2{font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;margin-bottom:8px}
-  .modal p{font-size:.85rem;color:var(--muted2);line-height:1.6;margin-bottom:20px}
-  .modal-btns{display:flex;flex-direction:column;gap:8px}
-  .modal-btn{width:100%;padding:12px;border-radius:10px;font-family:'Syne',sans-serif;
-    font-weight:700;font-size:.82rem;cursor:pointer;border:none;transition:all .2s}
-  .modal-btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white}
-  .modal-btn.primary:hover{opacity:.88}
-  .modal-btn.secondary{background:var(--surface);border:1px solid var(--border);color:var(--muted2)}
-  .modal-btn.secondary:hover{color:var(--text);border-color:var(--muted2)}
-  .modal-btn.danger{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--danger)}
-  .modal-btn.danger:hover{background:rgba(239,68,68,.2)}
+  /* Mic area hide/show per mode */
+  .mic-toggle-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .mic-toggle-inner{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+  #mic-toggle-section{display:flex;flex-direction:column;align-items:center;gap:10px}
 </style>
 </head>
 <body>
-
 <header>
   <div class="header-left">
-    <div class="badge">MEETING</div>
+    <div class="badge">SPEAKER</div>
     <h1>Live Translator</h1>
   </div>
-  <div class="header-right">
-    <div class="conn-pill" id="conn-pill" style="display:none">
-      <div class="dot"></div><span id="conn-text">0 listeners</span>
-    </div>
-    <div class="room-chip" id="room-chip" style="display:none">—</div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="conn-count"><div class="dot"></div><span id="conn-count">0 listeners connected</span></div>
+    <div class="room-display" id="room-display">No room</div>
   </div>
 </header>
 <div class="mode-nav">
-  <a href="speaker.html" class="mnav-btn">🎤 Speaker</a>
-  <a href="meeting.html" class="mnav-btn active">⇄ Meeting</a>
+  <a href="speaker.html" class="mnav-btn active">🎤 Speaker</a>
+  <a href="meeting.html" class="mnav-btn">⇄ Meeting</a>
   <a href="listener.html" class="mnav-btn">👂 Listener</a>
 </div>
+<div class="main">
 
-<!-- ══════════════════════════════════════
-     SETUP SCREEN
-══════════════════════════════════════ -->
-<div id="setup-screen">
-  <!-- Previous session download bar -->
-<div id="transcript-bar" style="display:none;margin-bottom:16px;
-  background:var(--card);border:1px solid var(--border);border-radius:12px;
-  padding:14px 18px;display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-  <div style="display:flex;align-items:center;gap:10px">
-    <span style="font-size:.78rem;color:var(--muted2)">📋 Previous session:</span>
-    <span style="font-family:'DM Mono',monospace;font-size:.78rem;color:var(--accent2)" id="tp-room">—</span>
-    <span style="font-size:.74rem;color:var(--muted)" id="tp-started"></span>
-    <span style="font-size:.74rem;font-family:'DM Mono',monospace" id="tp-expiry-text"></span>
-  </div>
-  <div style="display:flex;gap:8px">
-    <button class="dl-btn" onclick="downloadSavedTranscript()">⬇ Download transcript</button>
-    <button class="dl-btn" onclick="clearTranscript()" style="color:var(--danger);border-color:rgba(239,68,68,.3)">🗑 Clear</button>
-  </div>
-</div>
-
-<div style="padding-top:8px;margin-bottom:24px">
-    <div class="setup-title">Meeting Setup</div>
-    <div class="setup-sub">Configure your speakers, choose a translation provider, then start the meeting.</div>
-  </div>
-
-  <!-- Speakers -->
+  <!-- MIC -->
   <div class="card">
-    <div class="card-title">Speakers</div>
-    <div class="speaker-rows" id="speaker-rows"></div>
-    <button class="add-speaker-btn" id="add-speaker-btn" onclick="addSpeaker()">+ Add speaker</button>
-  </div>
+    <div class="card-title">Speak &amp; Translate</div>
+    <div class="mic-area">
+      <div class="lang-row">
+        <label>Speaking in:</label>
+        <select id="input-lang">
+          <option value="en-GB">English (UK)</option>
+          <option value="en-US">English (US)</option>
+          <option value="sv-SE">Swedish</option>
+          <option value="ar-SA">Arabic</option>
+          <option value="zh-CN">Chinese (Mandarin)</option>
+          <option value="nl-NL">Dutch</option>
+          <option value="fr-FR">French</option>
+          <option value="de-DE">German</option>
+          <option value="el-GR">Greek</option>
+          <option value="hi-IN">Hindi</option>
+          <option value="id-ID">Indonesian</option>
+          <option value="it-IT">Italian</option>
+          <option value="ja-JP">Japanese</option>
+          <option value="ko-KR">Korean</option>
+          <option value="ms-MY">Malay</option>
+          <option value="no-NO">Norwegian</option>
+          <option value="fa-IR">Persian (Farsi)</option>
+          <option value="pl-PL">Polish</option>
+          <option value="pt-BR">Portuguese (Brazil)</option>
+          <option value="pt-PT">Portuguese (Portugal)</option>
+          <option value="ro-RO">Romanian</option>
+          <option value="ru-RU">Russian</option>
+          <option value="es-ES">Spanish (Spain)</option>
+          <option value="es-MX">Spanish (Mexico)</option>
+          <option value="tr-TR">Turkish</option>
+          <option value="uk-UA">Ukrainian</option>
+          <option value="ur-PK">Urdu</option>
+          <option value="vi-VN">Vietnamese</option>
+        </select>
+      </div>
+      <!-- Mode toggle -->
+      <div class="mode-toggle" id="input-mode-toggle">
+        <button class="mtog active" id="mtog-toggle" onclick="setInputMode('toggle')">🎤 Toggle</button>
+        <button class="mtog" id="mtog-ptt" onclick="setInputMode('ptt')">🖐 Hold to Talk</button>
+      </div>
 
-  <!-- Output languages -->
-  <div class="card">
-    <div class="card-title">Translation Languages</div>
-    <div style="font-size:.76rem;color:var(--muted2);margin-bottom:10px">
-      Select the languages to display translations in. Listeners joining via listener.html will also be added automatically.
+      <!-- Toggle mode (existing mic button) -->
+      <div id="mic-toggle-section">
+        <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+      </div>
+
+      <!-- PTT mode -->
+      <div class="ptt-wrap" id="ptt-wrap">
+        <button class="ptt-big" id="ptt-big"
+          onmousedown="startPTT()" onmouseup="stopPTT()"
+          ontouchstart="startPTT()" ontouchend="stopPTT()"
+          onmouseleave="stopPTT()">
+          🎤
+          <span style="font-family:'DM Sans',sans-serif;font-size:.65rem;color:var(--muted)">HOLD</span>
+        </button>
+        <div class="ptt-sublabel" id="ptt-sublabel">Hold to speak, release to translate</div>
+      </div>
+
+      <div class="mic-label" id="mic-label">Connect to a room first, then press mic</div>
+      <div class="transcript-box empty" id="transcript">Spoken words will appear here...</div>
     </div>
-    <div class="chip-grid" id="chip-grid"></div>
-    <div class="add-lang-row">
-      <input type="text" id="custom-lang" placeholder="Add language (e.g. Tigrinya, Pashto...)" />
-      <button class="btn" style="padding:9px 14px;font-size:.78rem" onclick="addLang()">+ Add</button>
-    </div>
   </div>
 
-  <!-- Room + provider -->
+  <!-- SETUP -->
   <div class="card">
-    <div class="card-title">Connection &amp; Provider</div>
+    <div class="card-title">Setup — keys saved locally to this device only</div>
 
     <div class="provider-tabs">
-      <div class="ptab active" onclick="setProvider('anthropic')">Claude <span class="pill">paid</span></div>
-      <div class="ptab" onclick="setProvider('openai')">GPT-4o <span class="pill">paid</span></div>
-      <div class="ptab" onclick="setProvider('gemini')">Gemini <span class="pill">paid</span></div>
-      <div class="ptab" onclick="setProvider('ollama')">Ollama <span class="pill free">free</span></div>
-      <div class="ptab" onclick="setProvider('chromeai')">Chrome AI <span class="pill free">free · built-in</span></div>
+      <div class="ptab active" onclick="setProvider('anthropic')">Claude <span class="pill paid">paid</span></div>
+      <div class="ptab" onclick="setProvider('openai')">GPT-4o <span class="pill paid">paid</span></div>
+      <div class="ptab" onclick="setProvider('gemini')">Gemini <span class="pill paid">paid</span></div>
+      <div class="ptab" onclick="setProvider('ollama')">Ollama <span class="pill">free · local</span></div>
+      <div class="ptab" onclick="setProvider('chromeai')">Chrome AI <span class="pill">free · built-in</span></div>
     </div>
 
+    <!-- Claude -->
     <div class="provider-field active" id="pf-anthropic">
       <div class="field-single">
         <label>Anthropic API Key</label>
         <input type="password" id="key-anthropic" placeholder="sk-ant-..." />
+        <div class="hint">Get at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys. ~$0.75 per 30-min meeting.</div>
       </div>
     </div>
+
+    <!-- OpenAI -->
     <div class="provider-field" id="pf-openai">
       <div class="field-single">
         <label>OpenAI API Key</label>
         <input type="password" id="key-openai" placeholder="sk-..." />
+        <div class="hint">Get at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a> → API Keys. Uses gpt-4o-mini.</div>
       </div>
     </div>
+
+    <!-- Gemini -->
     <div class="provider-field" id="pf-gemini">
       <div class="field-single">
-        <label>Gemini API Key</label>
+        <label>Google Gemini API Key</label>
         <input type="password" id="key-gemini" placeholder="AIzaSy..." />
+        <div class="hint">Get at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>. Uses gemini-2.5-flash — currently the recommended stable model.</div>
       </div>
     </div>
+
+    <!-- Ollama -->
     <div class="provider-field" id="pf-ollama">
       <div class="field-row">
         <div>
-          <label>Ollama URL</label>
+          <label>Ollama Server URL</label>
           <input type="text" id="key-ollama" placeholder="http://localhost:11434" />
+          <div class="hint">Localhost if running on this machine. Use a Cloudflare Tunnel URL if Ollama is on another PC on the school network.</div>
         </div>
         <div>
           <label>Model</label>
           <input type="text" id="ollama-model" placeholder="qwen2.5:7b" />
+          <div class="hint">Recommended for GTX 1070: <code>qwen2.5:7b</code>. First run <code>ollama pull qwen2.5:7b</code> on the server PC.</div>
         </div>
       </div>
     </div>
-    <div class="provider-field" id="pf-chromeai">
-      <div class="field-note" id="chromeai-status" style="font-size:.85rem;line-height:1.5">Checking Chrome AI availability...</div>
-    </div>
 
-    <div class="field-single" style="margin-top:4px">
-      <label>Room Code <span style="color:var(--muted);font-size:.72rem">(share with listener.html users)</span></label>
+    <div class="field-single">
+      <label>Room Code <span style="color:var(--muted);font-weight:400;font-size:.75rem">— share this with listeners before the meeting</span></label>
       <input type="text" id="room-code" placeholder="e.g. A11" maxlength="20"
         oninput="this.value=this.value.toUpperCase()" />
     </div>
 
-    <div class="disclaimer">
-      <div class="disclaimer-title">⚠ Accuracy Disclaimer</div>
-      <p>Translations are generated by AI and may contain errors, omissions, or mistranslations. They should not be used as the sole or official record of any meeting, legal proceeding, or important decision. Always verify critical information with a qualified human interpreter.</p>
-      <label>
-        <input type="checkbox" id="disclaimer-check" onchange="toggleStartBtn()" />
-        I understand that translations may be inaccurate and will not rely on them as an official record
-      </label>
-    </div>
-
     <div class="btn-row">
-      <button class="btn" id="start-btn" onclick="startMeeting()" disabled style="opacity:.35;cursor:not-allowed">Start Meeting</button>
+      <button class="btn" onclick="connectRoom()">Connect to Room</button>
       <span id="setup-status"></span>
     </div>
   </div>
-</div>
 
-<!-- ══════════════════════════════════════
-     MEETING SCREEN
-══════════════════════════════════════ -->
-<div id="meeting-screen">
-
-  <!-- Translation display -->
-  <div id="display-area">
-    <div class="display-empty" id="display-empty">🎤 Hold a button below to speak</div>
-    <div id="display-content" style="display:none">
-      <div class="display-source" id="display-source">
-        <div class="source-num" id="source-num"></div>
-        <div class="source-name" id="source-name"></div>
-      </div>
-      <div class="display-original" id="display-original"></div>
-      <div class="trans-grid-meet" id="trans-grid"></div>
+  <!-- LANGUAGES -->
+  <div class="card">
+    <div class="card-title">Target Languages</div>
+    <div id="listener-langs" style="display:none;font-size:.78rem;color:var(--success);
+      background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;
+      padding:8px 12px;margin-bottom:12px;line-height:1.5"></div>
+    <div style="font-size:.78rem;color:var(--muted2);margin-bottom:10px">
+      Optional extras — add languages beyond what listeners have requested:
+    </div>
+    <div class="chip-grid" id="chip-grid"></div>
+    <div class="add-lang-row">
+      <input type="text" id="custom-lang" placeholder="Add language (e.g. Tigrinya, Pashto...)" />
+      <button class="btn" style="padding:10px 16px;font-size:.8rem" onclick="addLang()">+ Add</button>
     </div>
   </div>
 
-  <!-- Speaker panels -->
-  <div id="speakers-wrap">
-    <div id="speakers-area"></div>
+  <!-- PREVIEW -->
+  <div class="card" id="trans-section" style="display:none">
+    <div class="card-title">Live Translation Preview</div>
+    <div class="trans-grid" id="trans-grid"></div>
   </div>
 
-  <!-- History -->
-  <div id="history-panel">
-    <div class="history-title">Session history</div>
-    <div id="history-list"><div style="color:var(--muted);font-size:.8rem;font-style:italic">Nothing yet</div></div>
-  </div>
-
-  <!-- Bottom bar -->
-  <div style="border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(5,8,15,.6);backdrop-filter:blur(8px);flex-wrap:wrap">
-    <button onclick="confirmEnd()" style="background:none;border:1px solid var(--border);border-radius:8px;
-      color:var(--muted2);font-family:'DM Sans',sans-serif;font-size:.78rem;padding:6px 14px;cursor:pointer">
-      ← End &amp; Reconfigure
-    </button>
-
-  </div>
-</div>
-
-<!-- Exit confirmation modal -->
-<div class="modal-overlay" id="exit-modal">
-  <div class="modal">
-    <h2>End meeting?</h2>
-    <p id="exit-modal-msg">This will clear the session history and return to setup. Would you like to download the transcript first?</p>
-    <div class="modal-btns">
-      <button class="modal-btn primary" onclick="downloadThenEnd()">⬇ Download transcript &amp; end</button>
-      <button class="modal-btn danger" onclick="forceEnd()">End without downloading</button>
-      <button class="modal-btn secondary" onclick="closeModal()">Cancel — keep going</button>
+  <!-- HISTORY -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="card-title" style="margin:0">Session History</div>
+      <button class="btn-ghost" onclick="clearHistory()">Clear</button>
     </div>
+    <div class="history" id="history"><div class="empty-note">No translations yet</div></div>
   </div>
 </div>
-
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getDatabase, ref, set, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 const FB_CONFIG = {
   apiKey:      'AIzaSyAxu-jLi24nzfVr93CepVG6EZnY4t7aZ-o',
@@ -485,74 +358,17 @@ const FB_CONFIG = {
   appId:       '1:877155393473:web:13622664b9563976ac9940'
 };
 
-const SPEAKER_LANGS = [
-  {label:'English (UK)', code:'en-GB'}, {label:'English (US)', code:'en-US'},
-  {label:'Swedish', code:'sv-SE'}, {label:'Arabic', code:'ar-SA'},
-  {label:'Chinese', code:'zh-CN'}, {label:'Dutch', code:'nl-NL'},
-  {label:'French', code:'fr-FR'}, {label:'German', code:'de-DE'},
-  {label:'Greek', code:'el-GR'}, {label:'Hindi', code:'hi-IN'},
-  {label:'Italian', code:'it-IT'}, {label:'Japanese', code:'ja-JP'},
-  {label:'Korean', code:'ko-KR'}, {label:'Norwegian', code:'no-NO'},
-  {label:'Persian', code:'fa-IR'}, {label:'Polish', code:'pl-PL'},
-  {label:'Portuguese', code:'pt-BR'}, {label:'Romanian', code:'ro-RO'},
-  {label:'Russian', code:'ru-RU'}, {label:'Spanish', code:'es-ES'},
-  {label:'Turkish', code:'tr-TR'}, {label:'Ukrainian', code:'uk-UA'},
-  {label:'Urdu', code:'ur-PK'}, {label:'Vietnamese', code:'vi-VN'},
-];
-
-const LANG_NAMES = Object.fromEntries(SPEAKER_LANGS.map(l => [l.code, l.label]));
-
-const OUTPUT_PRESETS = ['English','Albanian','Amharic','Arabic','Dari','Dutch','Farsi','French',
-  'German','Greek','Hindi','Indonesian','Italian','Japanese','Korean','Kurdish',
-  'Malay','Norwegian','Polish','Portuguese','Romanian','Russian','Somali','Spanish',
-  'Swedish','Tigrinya','Turkish','Ukrainian','Urdu','Vietnamese'];
-
-const SPEAKER_COLORS = ['s1','s2','s3','s4'];
-const SPEAKER_HEX = ['#2563eb','#059669','#d97706','#7c3aed'];
-
-// ── State ──────────────────────────────────────────────
-let db = null, roomCode = '';
-let speakers = []; // {id, name, langCode, langLabel, recognition, isRecording}
-let selectedLangs = new Set(['English','Arabic','Swedish']);
+let db = null, connected = false, roomCode = '';
 let listenerLangs = new Set();
+let isListening = false, recognition = null, inputMode = 'toggle', pttRecognition = null, pttActive = false;
+let selectedLangs = new Set();
 let historyItems = [];
-let sessionStartTime = null;
-let projectorActive = true;
 let currentProvider = 'anthropic';
-let speakerCount = 0;
 
-// ── Init ───────────────────────────────────────────────
-window.addEventListener('load', () => {
-  // Restore saved state
-  ['anthropic','openai','gemini'].forEach(p => {
-    const v = localStorage.getItem('lt_key_' + p);
-    if (v) document.getElementById('key-' + p).value = v;
-  });
-  document.getElementById('key-ollama').value = localStorage.getItem('lt_key_ollama') || 'http://localhost:11434';
-  document.getElementById('ollama-model').value = localStorage.getItem('lt_ollama_model') || 'qwen2.5:7b';
-  const savedRoom = localStorage.getItem('lt_room') || '';
-  const cleanRoom = (savedRoom && !savedRoom.includes('@') && !savedRoom.includes('.')) ? savedRoom : 'A11';
-  document.getElementById('room-code').value = cleanRoom;
-  const savedProvider = localStorage.getItem('lt_provider');
-  if (savedProvider) setProvider(savedProvider);
+const PRESETS = ['Arabic','Somali','Dari','Tigrinya','Kurdish','Turkish','Polish',
+  'Spanish','French','German','Urdu','Hindi','Amharic','Farsi','Romanian','Albanian'];
 
-  // Default 2 speakers
-  addSpeaker('Speaker 1', 'en-GB');
-  addSpeaker('Speaker 2', 'sv-SE');
-
-  renderChips();
-});
-
-// ── Mode ───────────────────────────────────────────────
-window.toggleStartBtn = function() {
-  const checked = document.getElementById('disclaimer-check').checked;
-  const btn = document.getElementById('start-btn');
-  btn.disabled = !checked;
-  btn.style.opacity = checked ? '1' : '.35';
-  btn.style.cursor = checked ? 'pointer' : 'not-allowed';
-};
-
-// ── Provider ───────────────────────────────────────────
+// ── Provider switcher ──────────────────────────────────
 window.setProvider = function(p) {
   currentProvider = p;
   if (p === 'chromeai') checkChromeAIAvailability();
@@ -561,543 +377,345 @@ window.setProvider = function(p) {
   });
   document.querySelectorAll('.provider-field').forEach(f => f.classList.remove('active'));
   document.getElementById('pf-' + p).classList.add('active');
-  localStorage.setItem('lt_provider', p);
+  localStorage.setItem('iesv_provider', p);
 };
 
-// ── Speaker management ─────────────────────────────────
-window.addSpeaker = function(defaultName = '', defaultLang = 'en-GB') {
-  if (speakers.length >= 4) return;
-  speakerCount++;
-  const idx = speakers.length;
-  const id = 'sp-' + speakerCount;
-  speakers.push({ id, name: defaultName || `Speaker ${speakerCount}`, langCode: defaultLang,
-    langLabel: LANG_NAMES[defaultLang] || defaultLang, recognition: null, isRecording: false });
-
-  const row = document.createElement('div');
-  row.className = 'speaker-setup-row';
-  row.id = 'setup-row-' + id;
-
-  const langOptions = SPEAKER_LANGS.map(l =>
-    `<option value="${l.code}" ${l.code === defaultLang ? 'selected' : ''}>${l.label}</option>`
-  ).join('');
-
-  row.innerHTML = `
-    <div class="speaker-num s-num-${idx+1}">${idx+1}</div>
-    <input type="text" placeholder="Name (optional)" value="${defaultName}"
-      oninput="updateSpeakerName('${id}', this.value)" style="min-width:80px" />
-    <div class="speaker-lang-sel">
-      <select onchange="updateSpeakerLang('${id}', this.value)">${langOptions}</select>
-    </div>
-    ${speakers.length > 2 ? `<button class="remove-btn" onclick="removeSpeaker('${id}')">✕</button>` : ''}
-  `;
-  document.getElementById('speaker-rows').appendChild(row);
-
-  if (speakers.length >= 4) document.getElementById('add-speaker-btn').style.display = 'none';
-};
-
-window.updateSpeakerName = function(id, name) {
-  const sp = speakers.find(s => s.id === id);
-  if (sp) sp.name = name || sp.id;
-};
-window.updateSpeakerLang = function(id, code) {
-  const sp = speakers.find(s => s.id === id);
-  if (sp) { sp.langCode = code; sp.langLabel = LANG_NAMES[code] || code; }
-};
-window.removeSpeaker = function(id) {
-  speakers = speakers.filter(s => s.id !== id);
-  document.getElementById('setup-row-' + id)?.remove();
-  document.getElementById('add-speaker-btn').style.display = 'block';
-  // Re-render remaining rows to fix numbering
-  renderSpeakerSetupRows();
-};
-
-function renderSpeakerSetupRows() {
-  const container = document.getElementById('speaker-rows');
-  container.innerHTML = '';
-  speakers.forEach((sp, idx) => {
-    const row = document.createElement('div');
-    row.className = 'speaker-setup-row';
-    row.id = 'setup-row-' + sp.id;
-    const langOptions = SPEAKER_LANGS.map(l =>
-      `<option value="${l.code}" ${l.code === sp.langCode ? 'selected' : ''}>${l.label}</option>`
-    ).join('');
-    row.innerHTML = `
-      <div class="speaker-num s-num-${idx+1}">${idx+1}</div>
-      <input type="text" placeholder="Name (optional)" value="${sp.name.startsWith('Speaker') ? '' : sp.name}"
-        oninput="updateSpeakerName('${sp.id}', this.value)" style="min-width:80px" />
-      <div class="speaker-lang-sel">
-        <select onchange="updateSpeakerLang('${sp.id}', this.value)">${langOptions}</select>
-      </div>
-      ${speakers.length > 2 ? `<button class="remove-btn" onclick="removeSpeaker('${sp.id}')">✕</button>` : ''}
-    `;
-    container.appendChild(row);
+// ── Init ───────────────────────────────────────────────
+window.addEventListener('load', () => {
+  ['anthropic','openai','gemini'].forEach(p => {
+    const v = localStorage.getItem('iesv_key_' + p);
+    if (v) document.getElementById('key-' + p).value = v;
   });
+  document.getElementById('key-ollama').value = localStorage.getItem('iesv_key_ollama') || 'http://localhost:11434';
+  document.getElementById('ollama-model').value = localStorage.getItem('iesv_ollama_model') || 'qwen2.5:7b';
+  const savedRoom = localStorage.getItem('iesv_room-code') || '';
+  const cleanRoom = (savedRoom && !savedRoom.includes('@') && !savedRoom.includes('.')) ? savedRoom : 'A11';
+  document.getElementById('room-code').value = cleanRoom;
+  const savedProvider = localStorage.getItem('iesv_provider');
+  if (savedProvider) window.setProvider(savedProvider);
+  renderChips();
+});
+
+// ── Connect ────────────────────────────────────────────
+window.connectRoom = async function() {
+  roomCode = document.getElementById('room-code').value.trim().toUpperCase();
+  if (!roomCode) { setStatus('Enter a room code', 'err'); return; }
+  const key = getKey();
+  if (!key && currentProvider !== 'ollama' && currentProvider !== 'chromeai') { setStatus('Enter an API key', 'err'); return; }
+
+  // Save keys
+  localStorage.setItem('iesv_room-code', roomCode);
+  ['anthropic','openai','gemini'].forEach(p => {
+    const v = document.getElementById('key-' + p).value.trim();
+    if (v) localStorage.setItem('iesv_key_' + p, v);
+  });
+  localStorage.setItem('iesv_key_ollama', document.getElementById('key-ollama').value.trim());
+  localStorage.setItem('iesv_ollama_model', document.getElementById('ollama-model').value.trim());
+
+  setStatus('Connecting...', 'warn');
+  try {
+    const app = initializeApp({...FB_CONFIG}, 'iesv-t-' + Date.now());
+    db = getDatabase(app);
+    onValue(ref(db, `rooms/${roomCode}/connections`), snap => {
+      if (!snap.exists()) {
+        listenerLangs = new Set();
+        document.getElementById('conn-count').textContent = '0 listeners connected';
+        return;
+      }
+      const conns = snap.val();
+      const n = Object.keys(conns).length;
+      document.getElementById('conn-count').textContent = `${n} listener${n===1?'':'s'} connected`;
+      // Collect all listener languages
+      listenerLangs = new Set(Object.values(conns).map(c => c.lang).filter(Boolean));
+      // Show in the listener langs display
+      const ll = document.getElementById('listener-langs');
+      if (listenerLangs.size > 0) {
+        ll.textContent = 'Auto-translating into: ' + [...listenerLangs].join(', ');
+        ll.style.display = 'block';
+      } else {
+        ll.style.display = 'none';
+      }
+    });
+    await set(ref(db, `rooms/${roomCode}/active`), true);
+    await set(ref(db, `rooms/${roomCode}/latest`), {text:'',translations:{},ts:Date.now(),langs:[]});
+    connected = true;
+    document.getElementById('room-display').textContent = roomCode;
+    setStatus(`✓ Room ${roomCode} · ${providerLabel()}`, 'ok');
+    warmUpSpeakerMic();
+    document.getElementById('mic-label').textContent = 'Warming up mic...';
+    document.getElementById('ptt-sublabel').textContent = 'Warming up mic...';
+    // Pre-warm Chrome AI translators (must happen inside user gesture = button click)
+    if (currentProvider === 'chromeai') {
+      const srcCode = document.getElementById('input-lang').value.split('-')[0];
+      prewarmChromeTranslators(srcCode, [...selectedLangs]);
+    }
+  } catch(e) { setStatus('Firebase error: ' + e.message, 'err'); }
+};
+
+function providerLabel() {
+  return {anthropic:'Claude',openai:'GPT-4o-mini',gemini:'Gemini Flash',ollama:'Ollama (local)',chromeai:'Chrome AI'}[currentProvider];
 }
 
-// ── Output language chips ──────────────────────────────
+function getKey() {
+  if (currentProvider === 'ollama') return document.getElementById('key-ollama').value.trim() || 'http://localhost:11434';
+  if (currentProvider === 'chromeai') return '';
+  return document.getElementById('key-' + currentProvider).value.trim() ||
+         localStorage.getItem('iesv_key_' + currentProvider) || '';
+}
+
+function setStatus(msg, type) {
+  document.getElementById('setup-status').innerHTML = `<span class="spill ${type}">${msg}</span>`;
+}
+
+// ── Language chips ─────────────────────────────────────
 function renderChips() {
   const g = document.getElementById('chip-grid'); g.innerHTML = '';
-  OUTPUT_PRESETS.forEach(lang => {
+  PRESETS.forEach(lang => {
     const c = document.createElement('div');
     c.className = 'chip' + (selectedLangs.has(lang) ? ' on' : '');
-    c.textContent = lang;
-    c.onclick = () => { selectedLangs.has(lang) ? selectedLangs.delete(lang) : selectedLangs.add(lang); renderChips(); };
-    g.appendChild(c);
+    c.textContent = lang; c.onclick = () => toggleLang(lang); g.appendChild(c);
   });
+}
+function toggleLang(lang) {
+  selectedLangs.has(lang) ? selectedLangs.delete(lang) : selectedLangs.add(lang);
+  renderChips(); renderTransCards();
 }
 window.addLang = function() {
   const input = document.getElementById('custom-lang');
   const lang = input.value.trim(); if (!lang) return;
-  if (!OUTPUT_PRESETS.includes(lang)) OUTPUT_PRESETS.push(lang);
-  selectedLangs.add(lang); input.value = ''; renderChips();
+  if (!PRESETS.includes(lang)) PRESETS.push(lang);
+  selectedLangs.add(lang); input.value = ''; renderChips(); renderTransCards();
+};
+function slugify(s) { return s.replace(/[\s()]/g,'-'); }
+function renderTransCards() {
+  const sec = document.getElementById('trans-section'), grid = document.getElementById('trans-grid');
+  if (selectedLangs.size === 0) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  [...grid.children].forEach(c => { if (!selectedLangs.has(c.dataset.lang)) c.remove(); });
+  selectedLangs.forEach(lang => {
+    if (!grid.querySelector(`[data-lang="${lang}"]`)) {
+      const card = document.createElement('div'); card.className = 'trans-card'; card.dataset.lang = lang;
+      card.innerHTML = `<div class="tl">${lang}</div><div class="tt" id="tt-${slugify(lang)}">—</div>`;
+      grid.appendChild(card);
+    }
+  });
+}
+
+// ── Input mode ─────────────────────────────────────────
+window.setInputMode = function(mode) {
+  inputMode = mode;
+  document.getElementById('mtog-toggle').classList.toggle('active', mode === 'toggle');
+  document.getElementById('mtog-ptt').classList.toggle('active', mode === 'ptt');
+  document.getElementById('mic-toggle-section').style.display = mode === 'toggle' ? 'flex' : 'none';
+  document.getElementById('ptt-wrap').classList.toggle('visible', mode === 'ptt');
+  if (mode === 'toggle' && isListening) { stopMic(); }
+  if (mode === 'ptt' && isListening) { stopMic(); }
 };
 
-// ── Start meeting ──────────────────────────────────────
-window.startMeeting = async function() {
-  roomCode = document.getElementById('room-code').value.trim().toUpperCase();
-  if (!roomCode) { setSetupStatus('Enter a room code', 'err'); return; }
-  const key = getKey();
-  if (!key && currentProvider !== 'ollama' && currentProvider !== 'chromeai') { setSetupStatus('Enter an API key', 'err'); return; }
-  if (selectedLangs.size === 0) { setSetupStatus('Select at least one output language', 'err'); return; }
+// ── Mic warmup ──────────────────────────────────────────
+function markSpeakerReady() {
+  const label = document.getElementById('mic-label');
+  if (label) label.textContent = inputMode === 'toggle' ? 'Press mic to start speaking' : 'Hold button to speak';
+  const psub = document.getElementById('ptt-sublabel');
+  if (psub) {
+    psub.textContent = '✓ Ready — hold to speak, release to translate';
+    setTimeout(() => { psub.textContent = 'Hold to speak, release to translate'; }, 2000);
+  }
+  const pttBtn = document.getElementById('ptt-big');
+  if (pttBtn) {
+    pttBtn.style.borderColor = 'var(--success)';
+    setTimeout(() => { pttBtn.style.borderColor = ''; }, 1500);
+  }
+}
 
-  // Save keys
-  localStorage.setItem('lt_room', roomCode);
-  ['anthropic','openai','gemini'].forEach(p => {
-    const v = document.getElementById('key-' + p).value.trim();
-    if (v) localStorage.setItem('lt_key_' + p, v);
-  });
-  localStorage.setItem('lt_key_ollama', document.getElementById('key-ollama').value.trim());
-  localStorage.setItem('lt_ollama_model', document.getElementById('ollama-model').value.trim());
+function warmUpSpeakerMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { markSpeakerReady(); return; }
+  const lang = document.getElementById('input-lang').value;
 
-  setSetupStatus('Connecting...', 'warn');
+  // Guaranteed fallback — mark ready after 3s no matter what
+  const fallback = setTimeout(() => markSpeakerReady(), 3000);
+
   try {
-    const app = initializeApp({...FB_CONFIG}, 'lt-m-' + Date.now());
-    db = getDatabase(app);
-
-    // Listen for listener connections
-    onValue(ref(db, `rooms/${roomCode}/connections`), snap => {
-      if (!snap.exists()) { listenerLangs = new Set(); return; }
-      listenerLangs = new Set(Object.values(snap.val()).map(c => c.lang).filter(Boolean));
-      const n = Object.keys(snap.val()).length;
-      document.getElementById('conn-text').textContent = `${n} listener${n===1?'':'s'}`;
-    });
-
-    sessionStartTime = Date.now();
-    await set(ref(db, `rooms/${roomCode}/active`), true);
-    await set(ref(db, `rooms/${roomCode}/latest`), {text:'',translations:{},ts:Date.now(),langs:[]});
-
-    // Show meeting screen
-    document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('meeting-screen').style.display = 'block';
-    document.getElementById('room-chip').textContent = roomCode;
-    document.getElementById('room-chip').style.display = 'block';
-    document.getElementById('conn-pill').style.display = 'flex';
-
-    buildMeetingUI();
-    applyProjectorMode();
-    warmUpMic();
-    if (currentProvider === 'chromeai') prewarmChromeTranslators();
-    // After warmup period, signal buttons are ready
-    setTimeout(() => {
-      speakers.forEach(sp => {
-        const lbl = document.getElementById('ptt-label-' + sp.id);
-        if (lbl && lbl.textContent === 'Hold to speak') {
-          lbl.textContent = '✓ Ready — hold to speak';
-          const btn = document.getElementById('ptt-' + sp.id);
-          if (btn) btn.style.borderColor = 'var(--success)';
-          setTimeout(() => {
-            if (btn) btn.style.borderColor = '';
-            if (lbl) lbl.textContent = 'Hold to speak';
-          }, 2000);
-        }
-      });
-    }, speakers.length * 400 + 500);
-  } catch(e) { setSetupStatus('Firebase error: ' + e.message, 'err'); }
-};
-
-// ── Build meeting UI ───────────────────────────────────
-function buildMeetingUI() {
-  const area = document.getElementById('speakers-area');
-  area.innerHTML = '';
-
-  speakers.forEach((sp, idx) => {
-    const panel = document.createElement('div');
-    panel.className = 'speaker-panel';
-    panel.id = 'panel-' + sp.id;
-    panel.innerHTML = `
-      <div class="sp-header">
-        <div class="sp-badge sp-badge-${idx+1}">${idx+1}</div>
-        <div class="sp-info">
-          <div class="sp-name">${sp.name}</div>
-          <div class="sp-lang">${sp.langLabel}</div>
-        </div>
-        <div class="sp-status idle" id="status-${sp.id}">Ready</div>
-      </div>
-      <button class="ptt-btn s${idx+1}" id="ptt-${sp.id}"
-        onmousedown="startPTT('${sp.id}')" onmouseup="stopPTT('${sp.id}')"
-        ontouchstart="startPTT('${sp.id}')" ontouchend="stopPTT('${sp.id}')"
-        onmouseleave="stopPTT('${sp.id}')">
-        <span class="ptt-icon">🎤</span>
-        <span id="ptt-label-${sp.id}">Warming up mic...</span>
-      </button>
-    `;
-    area.appendChild(panel);
-  });
-
-  // Build translation card grid
-  renderTransGrid();
+    const r = new SR();
+    r.lang = lang;
+    r.continuous = false;
+    r.interimResults = false;
+    r.onstart = () => { setTimeout(() => { try { r.stop(); } catch(e) {} }, 200); };
+    r.onerror = () => { clearTimeout(fallback); markSpeakerReady(); };
+    r.onend = () => { clearTimeout(fallback); markSpeakerReady(); };
+    r.start();
+  } catch(e) { clearTimeout(fallback); markSpeakerReady(); }
 }
 
-function renderTransGrid() {
-  const grid = document.getElementById('trans-grid');
-  const allLangs = getAllLangs();
-  grid.innerHTML = '';
-  grid.className = 'trans-grid-meet' + (projectorActive ? ' projector' : '');
-  allLangs.forEach(lang => {
-    const card = document.createElement('div');
-    card.className = 'tcard';
-    card.dataset.lang = lang;
-    card.innerHTML = `<div class="tcard-lang">${lang}</div>
-      <div class="tcard-text${projectorActive ? ' projector' : ''}" id="tc-${slugify(lang)}">—</div>`;
-    grid.appendChild(card);
-  });
-}
-
-function getAllLangs() {
-  return [...new Set([...selectedLangs, ...listenerLangs])];
-}
-
-// ── PTT ───────────────────────────────────────────────
-window.startPTT = function(id) {
-  const sp = speakers.find(s => s.id === id);
-  if (!sp || sp.isRecording) return;
-  const lbl = document.getElementById('ptt-label-' + id);
-  if (lbl && lbl.textContent === 'Warming up mic...') {
-    // Stuck — just mark ready and let them proceed
-    markAllReady();
+// ── PTT for speaker page ────────────────────────────────
+window.startPTT = function() {
+  if (!connected) return;
+  if (pttActive) return;
+  const psub = document.getElementById('ptt-sublabel');
+  if (psub && psub.textContent.includes('Warming')) {
+    psub.textContent = 'Almost ready — try again in a moment';
+    setTimeout(() => { psub.textContent = 'Warming up mic...'; }, 1500);
     return;
   }
-
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert('Use Chrome for speech recognition.'); return; }
+  if (!SR) { setMicLabel('Use Chrome for speech recognition', 'err'); return; }
+  pttActive = true;
+  const lang = document.getElementById('input-lang').value;
+  const btn = document.getElementById('ptt-big');
+  btn.className = 'ptt-big recording';
+  document.getElementById('ptt-sublabel').textContent = 'Listening...';
+  pttRecognition = new SR();
+  pttRecognition.lang = lang;
+  pttRecognition.continuous = false;
+  pttRecognition.interimResults = true;
+  pttRecognition.onresult = e => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    const box = document.getElementById('transcript');
+    box.classList.remove('empty');
+    box.textContent = final || interim;
+    if (final.trim().length > 0) pttFinalText = final.trim();
+  };
+  pttRecognition.onerror = () => { pttActive = false; btn.className = 'ptt-big'; document.getElementById('ptt-sublabel').textContent = 'Hold to speak, release to translate'; };
+  pttRecognition.onend = () => {
+    if (pttFinalText) {
+      btn.className = 'ptt-big processing';
+      document.getElementById('ptt-sublabel').textContent = 'Translating...';
+      translateAndPush(pttFinalText).then(() => {
+        btn.className = 'ptt-big';
+        document.getElementById('ptt-sublabel').textContent = 'Hold to speak, release to translate';
+      });
+      pttFinalText = '';
+    } else {
+      btn.className = 'ptt-big';
+      document.getElementById('ptt-sublabel').textContent = 'Hold to speak, release to translate';
+    }
+    pttActive = false;
+  };
+  pttFinalText = '';
+  pttRecognition.start();
+};
 
-  sp.isRecording = true;
-  setSpStatus(id, 'recording', 'Listening...');
-  setPTTState(id, 'recording');
+window.stopPTT = function() {
+  if (!pttActive) return;
+  try { pttRecognition.stop(); } catch(e) {}
+};
 
-  sp.recognition = new SR();
-  sp.recognition.lang = sp.langCode;
-  sp.recognition.continuous = false;
-  sp.recognition.interimResults = false;
+let pttFinalText = '';
 
-  sp.recognition.onresult = async e => {
-    const text = e.results[0][0].transcript.trim();
-    if (text.length > 2) {
-      document.getElementById('ptt-label-' + id).textContent = text;
-      await translateAndPush(sp, text);
+// ── Mic ────────────────────────────────────────────────
+window.toggleMic = function() {
+  if (!connected) { alert('Connect to a room first.'); return; }
+  // Languages come from listeners automatically — manual selection is optional extra
+  isListening ? stopMic() : startMic();
+};
+function startMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setMicLabel('Use Chrome for speech recognition', 'err'); return; }
+  const lang = document.getElementById('input-lang').value;
+  recognition = new SR(); recognition.continuous = true; recognition.interimResults = true; recognition.lang = lang;
+  recognition.onstart = () => {
+    isListening = true;
+    document.getElementById('mic-btn').className = 'mic-btn listening';
+    document.getElementById('mic-btn').textContent = '⏹';
+    setMicLabel('Listening... speak now', 'active');
+  };
+  let debounce = null;
+  recognition.onresult = e => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    const box = document.getElementById('transcript');
+    box.classList.remove('empty'); box.textContent = final || interim;
+    if (final.trim().length > 3) {
+      clearTimeout(debounce); debounce = setTimeout(() => translateAndPush(final.trim()), 400);
     }
   };
-  sp.recognition.onerror = e => {
-    setSpStatus(id, 'idle', 'Ready');
-    setPTTState(id, 'idle');
-    sp.isRecording = false;
+  recognition.onerror = e => { setMicLabel('Error: ' + e.error, 'err'); stopMic(); };
+  recognition.onend = () => { if (isListening) recognition.start(); };
+  recognition.start();
+}
+function stopMic() {
+  isListening = false; if (recognition) recognition.stop();
+  document.getElementById('mic-btn').className = 'mic-btn';
+  document.getElementById('mic-btn').textContent = '🎤';
+  setMicLabel('Press mic to start speaking');
+}
+function setMicLabel(msg, type = '') {
+  const el = document.getElementById('mic-label'); el.textContent = msg;
+  el.className = 'mic-label' + (type ? ' ' + type : '');
+}
+
+// ── Translation ────────────────────────────────────────
+async function translateAndPush(text) {
+  if (!text) return;
+  // Merge listener-registered languages with any manually added extras
+  const allLangs = new Set([...listenerLangs, ...selectedLangs]);
+  if (allLangs.size === 0) { setMicLabel('No listeners connected and no languages selected', 'err'); return; }
+  const langList = [...allLangs].join(', ');
+  const langNames = {
+    'en-GB':'English','en-US':'English','sv-SE':'Swedish','ar-SA':'Arabic',
+    'zh-CN':'Chinese','nl-NL':'Dutch','fr-FR':'French','de-DE':'German',
+    'el-GR':'Greek','hi-IN':'Hindi','id-ID':'Indonesian','it-IT':'Italian',
+    'ja-JP':'Japanese','ko-KR':'Korean','ms-MY':'Malay','no-NO':'Norwegian',
+    'fa-IR':'Persian','pl-PL':'Polish','pt-BR':'Portuguese','pt-PT':'Portuguese',
+    'ro-RO':'Romanian','ru-RU':'Russian','es-ES':'Spanish','es-MX':'Spanish',
+    'tr-TR':'Turkish','uk-UA':'Ukrainian','ur-PK':'Urdu','vi-VN':'Vietnamese'
   };
-  sp.recognition.onend = () => {
-    if (sp.isRecording) sp.isRecording = false;
-  };
-  sp.recognition.start();
-};
+  const srcLang = langNames[document.getElementById('input-lang').value] || 'English';
+  const prompt = `Translate this ${srcLang} text into these languages: ${langList}\nReturn ONLY valid JSON, language names as keys, translations as values. No markdown.\n\nText: "${text}"`;
 
-window.stopPTT = function(id) {
-  const sp = speakers.find(s => s.id === id);
-  if (!sp) return;
-  sp.isRecording = false;
-  if (sp.recognition) {
-    try { sp.recognition.stop(); } catch(e) {}
-  }
-  if (document.getElementById('status-' + id)?.textContent === 'Listening...') {
-    setSpStatus(id, 'idle', 'Ready');
-    setPTTState(id, 'idle');
-    document.getElementById('ptt-label-' + id).textContent = 'Hold to speak';
-  }
-};
-
-// ── Translate ──────────────────────────────────────────
-async function translateAndPush(sp, text) {
-  const allLangs = getAllLangs();
-  if (allLangs.length === 0) return;
-
-  setSpStatus(sp.id, 'translating', 'Translating...');
-  setPTTState(sp.id, 'translating');
-  document.getElementById('ptt-label-' + sp.id).textContent = 'Translating...';
-
-  // Show in display area immediately
-  const idx = speakers.indexOf(sp);
-  document.getElementById('display-empty').style.display = 'none';
-  document.getElementById('display-content').style.display = 'block';
-  document.getElementById('source-num').textContent = idx + 1;
-  document.getElementById('source-num').style.background = SPEAKER_HEX[idx];
-  document.getElementById('source-name').textContent = sp.name + ' · ' + sp.langLabel;
-  document.getElementById('display-original').textContent = text;
-  document.getElementById('display-original').className = 'display-original' + (projectorActive ? ' projector' : '');
-
-  // Set loading state on cards
-  allLangs.forEach(lang => {
-    const el = document.getElementById('tc-' + slugify(lang));
-    if (el) { el.textContent = 'Translating...'; el.className = 'tcard-text loading' + (projectorActive ? ' projector' : ''); }
+  document.getElementById('mic-btn').className = 'mic-btn processing';
+  setMicLabel('Translating...', 'active');
+  selectedLangs.forEach(lang => {
+    const el = document.getElementById('tt-' + slugify(lang));
+    if (el) { el.textContent = 'Translating...'; el.className = 'tt loading'; }
   });
-
-  const prompt = `Translate this ${sp.langLabel} text into: ${allLangs.join(', ')}\nReturn ONLY valid JSON, language names as keys, translations as values. No markdown.\n\nText: "${text}"`;
 
   try {
     let translations;
     if      (currentProvider === 'anthropic') translations = await callAnthropic(prompt);
     else if (currentProvider === 'openai')    translations = await callOpenAI(prompt);
     else if (currentProvider === 'gemini')    translations = await callGemini(prompt);
-    else if (currentProvider === 'chromeai')  translations = await callChromeAI(text, allLangs, sp.langCode.split('-')[0]);
-    else                                      translations = await callOllama(prompt);
+    else if (currentProvider === 'ollama')    translations = await callOllama(prompt);
+    else if (currentProvider === 'chromeai')  translations = await callChromeAI(text, [...allLangs]);
 
-    allLangs.forEach(lang => {
-      const el = document.getElementById('tc-' + slugify(lang));
-      const card = el?.closest('.tcard');
+    selectedLangs.forEach(lang => {
+      const el = document.getElementById('tt-' + slugify(lang));
+      const card = el?.closest('.trans-card');
       if (el && translations[lang]) {
-        el.textContent = translations[lang];
-        el.className = 'tcard-text' + (projectorActive ? ' projector' : '');
-        card?.classList.add('flash');
-        setTimeout(() => card?.classList.remove('flash'), 1500);
+        el.textContent = translations[lang]; el.className = 'tt';
+        card?.classList.add('flash'); setTimeout(() => card?.classList.remove('flash'), 1500);
       }
     });
-
-    // Push to Firebase for listeners
-    if (db) await set(ref(db, `rooms/${roomCode}/latest`), {
-      text, translations, ts: Date.now(), langs: allLangs,
-      speakerName: sp.name, speakerNum: idx + 1
-    });
-
-    addHistory(sp, text, idx, translations);
-    setSpStatus(sp.id, 'done', '✓ Done');
-    setPTTState(sp.id, 'idle');
-    document.getElementById('ptt-label-' + sp.id).textContent = 'Hold to speak';
-    setTimeout(() => setSpStatus(sp.id, 'idle', 'Ready'), 2000);
-
+    if (db) await set(ref(db, `rooms/${roomCode}/latest`), {text, translations, ts: Date.now(), langs: [...allLangs]});
+    addHistory(text);
+    setMicLabel('Translated — ready for next phrase', 'active');
   } catch(e) {
-    setSpStatus(sp.id, 'idle', 'Error: ' + e.message.slice(0, 40));
-    setPTTState(sp.id, 'idle');
-    document.getElementById('ptt-label-' + sp.id).textContent = 'Hold to speak';
-    allLangs.forEach(lang => {
-      const el = document.getElementById('tc-' + slugify(lang));
-      if (el) { el.textContent = 'Error'; el.className = 'tcard-text loading'; }
+    setMicLabel('Error: ' + e.message, 'err');
+    selectedLangs.forEach(lang => {
+      const el = document.getElementById('tt-' + slugify(lang));
+      if (el) { el.textContent = 'Error'; el.className = 'tt loading'; }
     });
   }
+  setTimeout(() => {
+    document.getElementById('mic-btn').className = isListening ? 'mic-btn listening' : 'mic-btn';
+  }, 1000);
 }
 
-// ── History ────────────────────────────────────────────
-function addHistory(sp, text, idx, translations) {
-  const time = new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
-  const list = document.getElementById('history-list');
-  if (historyItems.length === 0) list.innerHTML = '';
-  historyItems.unshift({sp, text, idx, time, translations: translations || {}});
-  const item = document.createElement('div');
-  item.className = 'h-item';
-  item.innerHTML = `
-    <div class="h-num h-num-${idx+1}">${idx+1}</div>
-    <div class="h-text">${text}</div>
-    <div class="h-time">${time}</div>
-  `;
-  list.prepend(item);
-}
 
-// Projector is always on — apply on build
-
-// ── Mic warmup ─────────────────────────────────────────
-// Starts and immediately stops a recognition session for each speaker language.
-// This triggers the browser mic permission prompt and warms up the Google SR
-// connection so the first real PTT press responds instantly.
-function markAllReady() {
-  speakers.forEach(sp => {
-    const lbl = document.getElementById('ptt-label-' + sp.id);
-    const btn = document.getElementById('ptt-' + sp.id);
-    if (lbl) lbl.textContent = 'Hold to speak';
-    if (btn) { btn.style.borderColor = 'var(--success)'; setTimeout(() => { btn.style.borderColor = ''; }, 1500); }
-  });
-}
-
-function warmUpMic() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  // If no SR support, just mark ready immediately
-  if (!SR) { markAllReady(); return; }
-
-  const langs = [...new Set(speakers.map(s => s.langCode))];
-  let completed = 0;
-  const total = langs.length;
-
-  // Guaranteed fallback — no matter what, mark ready after 3 seconds
-  const fallback = setTimeout(() => markAllReady(), 3000);
-
-  langs.forEach((lang, i) => {
-    setTimeout(() => {
-      try {
-        const r = new SR();
-        r.lang = lang;
-        r.continuous = false;
-        r.interimResults = false;
-        r.onstart = () => { setTimeout(() => { try { r.stop(); } catch(e) {} }, 200); };
-        r.onerror = () => {
-          completed++;
-          if (completed >= total) { clearTimeout(fallback); markAllReady(); }
-        };
-        r.onend = () => {
-          completed++;
-          if (completed >= total) { clearTimeout(fallback); markAllReady(); }
-        };
-        r.start();
-      } catch(e) {
-        completed++;
-        if (completed >= total) { clearTimeout(fallback); markAllReady(); }
-      }
-    }, i * 300);
-  });
-}
-
-function applyProjectorMode() {
-  document.getElementById('display-area').classList.add('projector-mode');
-  document.getElementById('speakers-wrap').classList.add('projector-mode-wrap');
-  renderTransGrid();
-}
-
-// ── UI helpers ─────────────────────────────────────────
-function setSpStatus(id, type, text) {
-  const el = document.getElementById('status-' + id);
-  if (!el) return;
-  el.className = 'sp-status ' + type;
-  el.textContent = text;
-}
-function setPTTState(id, state) {
-  const btn = document.getElementById('ptt-' + id);
-  if (!btn) return;
-  const sp = speakers.find(s => s.id === id);
-  const idx = speakers.indexOf(sp);
-  btn.className = `ptt-btn s${idx+1} ${state}`;
-}
-function slugify(s) { return s.replace(/[\s()]/g, '-'); }
-function setSetupStatus(msg, type) {
-  document.getElementById('setup-status').innerHTML = `<span class="spill ${type}">${msg}</span>`;
-}
-function getKey() {
-  if (currentProvider === 'ollama') return document.getElementById('key-ollama').value.trim() || 'http://localhost:11434';
-  if (currentProvider === 'chromeai') return '';
-  return document.getElementById('key-' + currentProvider).value.trim() ||
-         localStorage.getItem('lt_key_' + currentProvider) || '';
-}
-
-// ── Transcript / localStorage ─────────────────────────
-function buildTranscriptLines() {
-  const lines = [];
-  const started = sessionStartTime ? new Date(sessionStartTime).toLocaleString('en-GB') : 'Unknown';
-  lines.push('LIVE TRANSLATOR — MEETING TRANSCRIPT');
-  lines.push('=====================================');
-  lines.push(`Room: ${roomCode}`);
-  lines.push(`Started: ${started}`);
-  lines.push(`Downloaded: ${new Date().toLocaleString('en-GB')}`);
-  lines.push('');
-  lines.push('DISCLAIMER: These translations were generated by AI and may contain errors.');
-  lines.push('They should not be used as an official record of this meeting.');
-  lines.push('');
-  lines.push('-------------------------------------');
-  [...historyItems].reverse().forEach(item => {
-    lines.push(`[${item.time}] Speaker ${item.idx+1} — ${item.sp.name} (${item.sp.langLabel})`);
-    lines.push(`  Original: ${item.text}`);
-    if (item.translations && Object.keys(item.translations).length > 0) {
-      Object.entries(item.translations).forEach(([lang, t]) => {
-        lines.push(`  ${lang}: ${t}`);
-      });
-    }
-    lines.push('');
-  });
-  return lines;
-}
-
-function saveTranscriptToStorage() {
-  if (historyItems.length === 0) return;
-  const payload = {
-    room: roomCode,
-    started: sessionStartTime,
-    savedAt: Date.now(),
-    expiresAt: Date.now() + 30 * 60 * 1000,
-    items: [...historyItems].reverse().map(item => ({
-      time: item.time,
-      speakerNum: item.idx + 1,
-      speakerName: item.sp.name,
-      speakerLang: item.sp.langLabel,
-      text: item.text,
-      translations: item.translations || {}
-    }))
-  };
-  localStorage.setItem('lt_transcript', JSON.stringify(payload));
-}
-
-window.downloadTranscript = function() {
-  if (historyItems.length === 0) { alert('No transcript to download yet.'); return; }
-  const lines = buildTranscriptLines();
-  const blob = new Blob([lines.join('\n')], {type:'text/plain'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `transcript-${roomCode}-${new Date().toISOString().slice(0,10)}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
-// ── Exit flow ──────────────────────────────────────────
-window.confirmEnd = function() {
-  if (historyItems.length === 0) { forceEnd(); return; }
-  document.getElementById('exit-modal-msg').textContent =
-    `You have ${historyItems.length} item${historyItems.length===1?'':'s'} in the session history. Download the transcript before ending?`;
-  const modal = document.getElementById('exit-modal');
-  modal.style.display = '';
-  modal.classList.add('open');
-};
-window.closeModal = function() {
-  ['exit-modal','expire-modal'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.classList.remove('open'); el.style.display = 'none'; }
-  });
-};
-window.downloadThenEnd = function() {
-  downloadTranscript();
-  setTimeout(forceEnd, 400);
-};
-window.forceEnd = function() {
-  closeModal();
-  doEndMeeting();
-};
-function doEndMeeting() {
-  saveTranscriptToStorage();
-  renderSetupTranscript();
-  historyItems = [];
-  document.getElementById('history-list').innerHTML = '<div style="color:var(--muted);font-size:.8rem;font-style:italic">Nothing yet</div>';
-  document.getElementById('disclaimer-check').checked = false;
-  window.toggleStartBtn();
-  speakers.forEach(sp => { if (sp.recognition) try { sp.recognition.stop(); } catch(e) {} });
-  const ms = document.getElementById('meeting-screen');
-  const ss = document.getElementById('setup-screen');
-  ms.style.display = 'none';
-  ms.style.visibility = 'hidden';
-  ss.style.display = 'block';
-  ss.style.visibility = 'visible';
-  window.scrollTo(0, 0);
-  document.getElementById('room-chip').style.display = 'none';
-  document.getElementById('conn-pill').style.display = 'none';
-}
-
-window.endMeeting = function() {
-  confirmEnd();
-};
-
-// ── API calls ──────────────────────────────────────────
 // ── Chrome Built-in Translator API ─────────────────────
-const chromeTranslatorCache = {};
-const chromeDownloadState = {};
+// Cache translators so we don't recreate them for every phrase
+// ── Chrome Built-in Translator API ─────────────────────
+const chromeTranslatorCache = {};   // key: "en->sv"  value: Translator instance
+const chromeDownloadState = {};     // key: "en->sv"  value: 'downloading'|'ready'|'error'
+const chromeErrorReason = {};       // key: "en->sv"  value: human-readable failure reason
 
 const LANG_TO_BCP47 = {
   'English':'en','Swedish':'sv','Arabic':'ar','Chinese':'zh','Dutch':'nl',
@@ -1107,53 +725,60 @@ const LANG_TO_BCP47 = {
   'Spanish':'es','Turkish':'tr','Ukrainian':'uk','Urdu':'ur','Vietnamese':'vi'
 };
 
-// Called from doStartMeeting (inside Start Meeting button click = user gesture)
-async function prewarmChromeTranslators() {
+// Called from connectRoom (a real user gesture) so Chrome allows downloads
+async function prewarmChromeTranslators(srcCode, targetLangs) {
   if (!('Translator' in self)) return;
-  const allOutputLangs = [...selectedLangs]; // the display-name langs chosen in setup
-  // Get all unique src language codes from speakers
-  const srcCodes = [...new Set(speakers.map(s => s.langCode.split('-')[0]))];
+  const pairs = targetLangs
+    .map(l => LANG_TO_BCP47[l])
+    .filter(t => t && t !== srcCode);
 
-  for (const srcCode of srcCodes) {
-    for (const displayLang of allOutputLangs) {
-      const tgtCode = LANG_TO_BCP47[displayLang];
-      if (!tgtCode || tgtCode === srcCode) continue;
-      const key = `${srcCode}->${tgtCode}`;
-      if (chromeTranslatorCache[key] || chromeDownloadState[key] === 'downloading') continue;
-      try {
-        const avail = await Translator.availability({ sourceLanguage: srcCode, targetLanguage: tgtCode });
-        if (avail === 'unavailable') continue;
-        chromeDownloadState[key] = 'downloading';
-        showChromeDownloadBar();
-        chromeTranslatorCache[key] = await Translator.create({
-          sourceLanguage: srcCode,
-          targetLanguage: tgtCode,
-          monitor(m) {
-            m.addEventListener('downloadprogress', e => updateChromeDownloadBar(key, e.loaded));
-          }
-        });
-        chromeDownloadState[key] = 'ready';
-        updateChromeDownloadBar(key, 1);
-      } catch(e) {
-        chromeDownloadState[key] = 'error';
-        console.warn('Chrome AI prewarm failed:', key, e.message);
-      }
+  for (const tgtCode of pairs) {
+    const key = `${srcCode}->${tgtCode}`;
+    if (chromeTranslatorCache[key] || chromeDownloadState[key] === 'downloading') continue;
+    try {
+      const avail = await Translator.availability({ sourceLanguage: srcCode, targetLanguage: tgtCode });
+      if (avail === 'unavailable') continue;
+      chromeDownloadState[key] = 'downloading';
+      showChromeDownloadBar(srcCode, pairs);
+      chromeTranslatorCache[key] = await Translator.create({
+        sourceLanguage: srcCode,
+        targetLanguage: tgtCode,
+        monitor(m) {
+          m.addEventListener('downloadprogress', e => {
+            updateChromeDownloadBar(key, e.loaded);
+          });
+        }
+      });
+      chromeDownloadState[key] = 'ready';
+      updateChromeDownloadBar(key, 1);
+    } catch(e) {
+      chromeDownloadState[key] = 'error';
+      const isUnsupported = e.message && (
+        e.message.includes('generic failures') ||
+        e.message.includes('NotSupportedError') ||
+        e.name === 'NotSupportedError'
+      );
+      chromeErrorReason[key] = isUnsupported
+        ? `not supported by Chrome AI (${srcCode}→${tgtCode})`
+        : e.message;
+      console.warn('Chrome AI prewarm failed for', key, e.message);
     }
   }
   maybeHideChromeDownloadBar();
 }
 
-function showChromeDownloadBar() {
-  if (document.getElementById('chrome-dl-bar')) return;
-  const bar = document.createElement('div');
+function showChromeDownloadBar(srcCode, pairs) {
+  let bar = document.getElementById('chrome-dl-bar');
+  if (bar) return; // already showing
+  bar = document.createElement('div');
   bar.id = 'chrome-dl-bar';
   bar.style.cssText = `position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
     background:var(--card);border:1px solid var(--border);border-radius:12px;
     padding:12px 18px;font-family:'DM Sans',sans-serif;font-size:.82rem;
     color:var(--muted2);z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.3);
-    min-width:280px;text-align:center;`;
+    min-width:260px;text-align:center;`;
   bar.innerHTML = `<div style="margin-bottom:6px">⬇️ Downloading Chrome AI language models…</div>
-    <div style="background:var(--surface);border-radius:6px;height:6px;overflow:hidden">
+    <div id="chrome-dl-progress" style="background:var(--surface);border-radius:6px;height:6px;overflow:hidden">
       <div id="chrome-dl-fill" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .3s"></div>
     </div>
     <div id="chrome-dl-detail" style="margin-top:5px;font-size:.74rem;color:var(--muted)">Starting…</div>`;
@@ -1169,8 +794,9 @@ function updateChromeDownloadBar(key, loaded) {
   const vals = Object.values(pairProgress);
   const avg = vals.reduce((a,b) => a+b, 0) / vals.length;
   fill.style.width = Math.round(avg * 100) + '%';
-  const done = vals.filter(v => v >= 1).length;
-  if (detail) detail.textContent = `${done} of ${vals.length} language pair${vals.length !== 1 ? 's' : ''} ready`;
+  // Show which pairs are done
+  const done = Object.entries(pairProgress).filter(([,v]) => v >= 1).length;
+  if (detail) detail.textContent = `${done} of ${vals.length} language pair${vals.length > 1 ? 's' : ''} ready`;
 }
 
 function maybeHideChromeDownloadBar() {
@@ -1178,25 +804,40 @@ function maybeHideChromeDownloadBar() {
   if (!allDone) return;
   const bar = document.getElementById('chrome-dl-bar');
   if (!bar) return;
-  bar.innerHTML = `<div>✅ Chrome AI models ready</div>`;
-  setTimeout(() => bar.remove(), 2000);
+  const errors = Object.entries(chromeDownloadState).filter(([,s]) => s === 'error');
+  if (errors.length > 0) {
+    const langs = errors.map(([k]) => k.split('->')[1].toUpperCase()).join(', ');
+    bar.innerHTML = `<div>⚠️ Chrome AI: ${langs} not supported — other languages OK</div>`;
+  } else {
+    bar.innerHTML = `<div>✅ Chrome AI models ready</div>`;
+  }
+  setTimeout(() => bar.remove(), 3500);
 }
 
-async function callChromeAI(text, targetLangs, srcCode) {
+async function callChromeAI(text, targetLangs) {
   if (!('Translator' in self)) throw new Error('Chrome AI not available — check flags and device requirements.');
+  const srcCode = document.getElementById('input-lang').value.split('-')[0];
   const results = {};
+
   await Promise.all(targetLangs.map(async (displayLang) => {
     const tgtCode = LANG_TO_BCP47[displayLang];
     if (!tgtCode) { results[displayLang] = `(unsupported: ${displayLang})`; return; }
     if (tgtCode === srcCode) { results[displayLang] = text; return; }
+
     const key = `${srcCode}->${tgtCode}`;
     try {
+      // Translator should already be cached from prewarm; if not (e.g. new lang added),
+      // this will fail with the gesture error — user should reconnect
       if (!chromeTranslatorCache[key]) {
         if (chromeDownloadState[key] === 'downloading') {
-          results[displayLang] = '(model still downloading — try again shortly)';
+          results[displayLang] = '(model downloading — try again in a moment)';
           return;
         }
-        throw new Error(`Model not ready for ${displayLang}. Restart meeting to trigger download.`);
+        if (chromeDownloadState[key] === 'error') {
+          results[displayLang] = `(unavailable: ${chromeErrorReason[key] || 'Chrome AI could not load this language pair'})`;
+          return;
+        }
+        throw new Error(`Model for ${displayLang} not ready. Reconnect to room to trigger download.`);
       }
       results[displayLang] = await chromeTranslatorCache[key].translate(text);
     } catch(e) {
@@ -1221,9 +862,13 @@ async function checkChromeAIAvailability() {
   try {
     const avail = await Translator.availability({ sourceLanguage: 'en', targetLanguage: 'sv' });
     if (avail === 'unavailable') {
-      el.innerHTML = '⚠️ Chrome AI present but unavailable. Check <code>chrome://on-device-translation-internals/</code>';
+      el.innerHTML = '⚠️ Chrome AI present but language pairs unavailable. Check <code>chrome://on-device-translation-internals/</code>';
+      el.style.color = 'orange';
+    } else if (avail === 'downloadable' || avail === 'downloading') {
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Language models download automatically when you Connect to Room. No API key needed.';
+      el.style.color = '#22c55e';
     } else {
-      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models download automatically when you click Start Meeting. No API key needed — offline after download.';
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models already available — fully offline, no API key needed.';
       el.style.color = '#22c55e';
     }
   } catch(e) {
@@ -1232,31 +877,34 @@ async function checkChromeAIAvailability() {
 }
 
 function parseJSON(raw) {
-  const m = raw.trim().match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('No JSON in response');
-  return JSON.parse(m[0]);
+  const match = raw.trim().match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No JSON returned from model');
+  return JSON.parse(match[0]);
 }
+
 async function callAnthropic(prompt) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method:'POST',
-    headers:{'Content-Type':'application/json','x-api-key':getKey(),
+    method: 'POST',
+    headers: {'Content-Type':'application/json','x-api-key':getKey(),
       'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1500,messages:[{role:'user',content:prompt}]})
+    body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1200,messages:[{role:'user',content:prompt}]})
   });
   const d = await res.json();
   if (d.error) throw new Error(d.error.message);
   return parseJSON(d.content[0].text);
 }
+
 async function callOpenAI(prompt) {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer ' + getKey()},
-    body: JSON.stringify({model:'gpt-4o-mini',max_tokens:1500,messages:[{role:'user',content:prompt}]})
+    method: 'POST',
+    headers: {'Content-Type':'application/json','Authorization':'Bearer ' + getKey()},
+    body: JSON.stringify({model:'gpt-4o-mini',max_tokens:1200,messages:[{role:'user',content:prompt}]})
   });
   const d = await res.json();
   if (d.error) throw new Error(d.error.message);
   return parseJSON(d.choices[0].message.content);
 }
+
 async function callGemini(prompt) {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getKey()}`,
@@ -1267,11 +915,13 @@ async function callGemini(prompt) {
   if (d.error) throw new Error(d.error.message);
   return parseJSON(d.candidates[0].content.parts[0].text);
 }
+
 async function callOllama(prompt) {
   const base = (document.getElementById('key-ollama').value.trim() || 'http://localhost:11434').replace(/\/$/, '');
   const model = document.getElementById('ollama-model').value.trim() || 'qwen2.5:7b';
   const res = await fetch(`${base}/api/chat`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
     body: JSON.stringify({model, stream:false, messages:[{role:'user',content:prompt}]})
   });
   const d = await res.json();
@@ -1279,91 +929,20 @@ async function callOllama(prompt) {
   return parseJSON(d.message.content);
 }
 
-// ── Setup transcript bar ─────────────────────────────
-let expiryInterval = null;
-
-function renderSetupTranscript() {
-  const raw = localStorage.getItem('lt_transcript');
-  const bar = document.getElementById('transcript-bar');
-  if (!raw) { bar.style.display = 'none'; clearInterval(expiryInterval); return; }
-
-  let data;
-  try { data = JSON.parse(raw); } catch(e) { localStorage.removeItem('lt_transcript'); return; }
-
-  if (Date.now() > data.expiresAt) {
-    localStorage.removeItem('lt_transcript');
-    bar.style.display = 'none';
-    return;
-  }
-
-  bar.style.display = 'flex';
-  document.getElementById('tp-room').textContent = data.room || '—';
-  document.getElementById('tp-started').textContent = data.started
-    ? new Date(data.started).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})
-    : '';
-
-  clearInterval(expiryInterval);
-  updateExpiry(data.expiresAt);
-  expiryInterval = setInterval(() => {
-    if (Date.now() > data.expiresAt) {
-      localStorage.removeItem('lt_transcript');
-      bar.style.display = 'none';
-      clearInterval(expiryInterval);
-      return;
-    }
-    updateExpiry(data.expiresAt);
-  }, 30000);
+// ── History ────────────────────────────────────────────
+function addHistory(text) {
+  const time = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  historyItems.unshift({time, text});
+  const list = document.getElementById('history');
+  if (historyItems.length === 1) list.innerHTML = '';
+  const item = document.createElement('div'); item.className = 'hi';
+  item.innerHTML = `<div class="hi-meta">${time} · ${providerLabel()}</div><div class="hi-text">${text}</div>`;
+  list.prepend(item);
 }
-
-function updateExpiry(expiresAt) {
-  const minLeft = Math.ceil((expiresAt - Date.now()) / 60000);
-  const txt = document.getElementById('tp-expiry-text');
-  const col = minLeft <= 2 ? 'var(--danger)' : minLeft <= 5 ? 'var(--warn)' : 'var(--muted)';
-  txt.style.color = col;
-  txt.textContent = minLeft <= 1 ? '(expires soon)' : `(expires in ${minLeft} min)`;
-}
-
-window.downloadSavedTranscript = function() {
-  const raw = localStorage.getItem('lt_transcript');
-  if (!raw) return;
-  const data = JSON.parse(raw);
-  const lines = [];
-  lines.push('LIVE TRANSLATOR — MEETING TRANSCRIPT');
-  lines.push('=====================================');
-  lines.push('Room: ' + data.room);
-  lines.push('Started: ' + (data.started ? new Date(data.started).toLocaleString('en-GB') : 'Unknown'));
-  lines.push('Downloaded: ' + new Date().toLocaleString('en-GB'));
-  lines.push('');
-  lines.push('DISCLAIMER: These translations were generated by AI and may contain errors.');
-  lines.push('They should not be used as an official record of this meeting.');
-  lines.push('');
-  lines.push('-------------------------------------');
-  (data.items || []).forEach(item => {
-    lines.push(`[${item.time}] Speaker ${item.speakerNum} — ${item.speakerName} (${item.speakerLang})`);
-    lines.push(`  Original: ${item.text}`);
-    if (item.translations && Object.keys(item.translations).length > 0) {
-      Object.entries(item.translations).forEach(([lang, t]) => {
-        lines.push(`  ${lang}: ${t}`);
-      });
-    }
-    lines.push('');
-  });
-  const blob = new Blob([lines.join('\n')], {type:'text/plain'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `transcript-${data.room}-${new Date().toISOString().slice(0,10)}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
+window.clearHistory = function() {
+  historyItems = [];
+  document.getElementById('history').innerHTML = '<div class="empty-note">No translations yet</div>';
 };
-
-window.clearTranscript = function() {
-  localStorage.removeItem('lt_transcript');
-  renderSetupTranscript();
-};
-
-// Run on load
-renderSetupTranscript();
 </script>
 </body>
 </html>
