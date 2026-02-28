@@ -784,16 +784,88 @@ async function checkChromeAIAvailability() {
   const el = document.getElementById('chromeai-status');
   if (!el) return;
 
+  const ua = navigator.userAgent;
+  const isChrome = /Chrome\//.test(ua) && !/Edg\/|OPR\//.test(ua);
+  const isCrOS   = /CrOS/.test(ua);
+
+  // ── Not Chrome at all ───────────────────────────────
+  if (!isChrome) {
+    el.style.color = '';
+    el.innerHTML = `
+      <div style="color:var(--warn,#f59e0b);font-weight:600;margin-bottom:8px">
+        ⚠️ Chrome AI requires Google Chrome
+      </div>
+      <div style="font-size:.8rem;color:var(--muted2);line-height:1.6">
+        You're using a browser that doesn't support Chrome's built-in AI.
+        <strong>Switch to Google Chrome</strong> to use this option, or choose a paid provider (Claude, GPT-4o, Gemini)
+        which work in any browser and cost around $0.15 per 30-min meeting.
+      </div>`;
+    return;
+  }
+
+  // ── Chrome on Windows / Mac (not Chromebook) ────────
+  if (!isCrOS) {
+    if (!('Translator' in self)) {
+      el.style.color = '';
+      el.innerHTML = `
+        <div style="color:var(--accent2,#60a5fa);font-weight:600;margin-bottom:8px">
+          🖥️ Chrome AI on desktop — experimental
+        </div>
+        <div style="font-size:.8rem;color:var(--muted2);margin-bottom:12px;line-height:1.6">
+          Chrome AI works best on <strong>Chromebook Plus</strong> where it runs on dedicated hardware.
+          On desktop Chrome it's available but experimental — models run on your CPU and may be
+          slow or refuse to download on lower-spec machines.
+          <br><br>
+          <strong>Recommended:</strong> use a paid provider instead (~$0.15/meeting, no setup needed).
+          Or try enabling the desktop flag below — it may work fine on a modern PC.
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px;background:var(--surface);
+            border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px">
+          <div style="background:var(--accent);color:#fff;border-radius:50%;width:20px;height:20px;
+              display:flex;align-items:center;justify-content:center;font-size:.72rem;
+              font-weight:700;flex-shrink:0;margin-top:1px">1</div>
+          <div style="flex:1;font-size:.8rem;line-height:1.6">
+            <div style="color:var(--text);margin-bottom:4px">Enable the <strong>Translation API</strong> flag</div>
+            <div style="color:var(--muted);font-size:.73rem;margin-bottom:6px">
+              Find <code style="font-size:.7rem">translation-api</code> and set to <strong>Enabled</strong>
+            </div>
+            <button onclick="window.open('chrome://flags/#translation-api','_blank')"
+              style="background:var(--accent);color:#fff;border:none;border-radius:6px;
+              padding:5px 12px;font-size:.75rem;cursor:pointer;font-family:inherit">
+              Open Flag ↗
+            </button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px;background:var(--surface);
+            border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+          <div style="background:var(--muted);color:#fff;border-radius:50%;width:20px;height:20px;
+              display:flex;align-items:center;justify-content:center;font-size:.72rem;
+              font-weight:700;flex-shrink:0;margin-top:1px">2</div>
+          <div style="flex:1;font-size:.8rem;line-height:1.6">
+            <div style="color:var(--text);margin-bottom:4px">Click <strong>Relaunch</strong>, then re-select Chrome AI</div>
+            <div style="color:var(--muted);font-size:.73rem">
+              Chrome restarts and the check runs again. If your machine meets the requirements it'll activate.
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
+    // Desktop Chrome with Translator present — usable but flag it
+    el.style.color = '#22c55e';
+    el.innerHTML = '✅ <strong>Chrome AI active</strong> (desktop mode). Performance may vary — runs on CPU rather than dedicated hardware.';
+    return;
+  }
+
+  // ── Chromebook — flags not set ───────────────────────
   if (!('Translator' in self)) {
-    // Flags not enabled — show step-by-step setup guide
     el.style.color = '';
     el.innerHTML = `
       <div style="color:var(--warn,#f59e0b);font-weight:600;margin-bottom:10px">
-        ⚠️ Chrome AI not active on this device
+        ⚠️ Chrome AI not active on this Chromebook
       </div>
       <div style="font-size:.8rem;color:var(--muted2);margin-bottom:14px">
         Two Chrome flags need enabling, then Chrome must relaunch. Takes about 60 seconds.
-        <br>Requires <strong>Chromebook Plus</strong> with Chrome 138+.
+        Requires <strong>Chromebook Plus</strong> with Chrome 138+.
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
 
@@ -805,7 +877,8 @@ async function checkChromeAIAvailability() {
           <div style="flex:1;font-size:.8rem;line-height:1.6">
             <div style="color:var(--text);margin-bottom:4px">Enable the <strong>on-device AI model</strong> flag</div>
             <div style="color:var(--muted);font-size:.73rem;margin-bottom:6px">
-              Opens Chrome flags. Find <code style="font-size:.7rem">optimization-guide-on-device-model</code> and set to <strong>Enabled BypassPerfRequirement</strong>
+              Find <code style="font-size:.7rem">optimization-guide-on-device-model</code>
+              and set to <strong>Enabled BypassPerfRequirement</strong>
             </div>
             <button onclick="window.open('chrome://flags/#optimization-guide-on-device-model','_blank')"
               style="background:var(--accent);color:#fff;border:none;border-radius:6px;
@@ -823,7 +896,7 @@ async function checkChromeAIAvailability() {
           <div style="flex:1;font-size:.8rem;line-height:1.6">
             <div style="color:var(--text);margin-bottom:4px">Enable the <strong>language detection API</strong> flag</div>
             <div style="color:var(--muted);font-size:.73rem;margin-bottom:6px">
-              Opens Chrome flags. Find <code style="font-size:.7rem">language-detection-api</code> and set to <strong>Enabled</strong>
+              Find <code style="font-size:.7rem">language-detection-api</code> and set to <strong>Enabled</strong>
             </div>
             <button onclick="window.open('chrome://flags/#language-detection-api','_blank')"
               style="background:var(--accent);color:#fff;border:none;border-radius:6px;
@@ -841,8 +914,8 @@ async function checkChromeAIAvailability() {
           <div style="flex:1;font-size:.8rem;line-height:1.6">
             <div style="color:var(--text);margin-bottom:4px">Click <strong>Relaunch</strong> in Chrome</div>
             <div style="color:var(--muted);font-size:.73rem">
-              A blue Relaunch button appears at the bottom of the flags page after changing a flag.
-              Chrome will restart and return to this page.
+              A blue Relaunch button appears at the bottom of the flags page.
+              Chrome restarts and returns to this page.
             </div>
           </div>
         </div>
@@ -853,21 +926,22 @@ async function checkChromeAIAvailability() {
               display:flex;align-items:center;justify-content:center;font-size:.72rem;
               font-weight:700;flex-shrink:0;margin-top:1px">4</div>
           <div style="flex:1;font-size:.8rem;line-height:1.6">
-            <div style="color:var(--text);margin-bottom:4px">Come back to this page and re-select <strong>Chrome AI</strong></div>
+            <div style="color:var(--text);margin-bottom:4px">Come back and re-select <strong>Chrome AI</strong></div>
             <div style="color:var(--muted);font-size:.73rem">
-              The check will run again automatically. If it passes, you're done.
+              The check runs again automatically. If it passes, you're done.
             </div>
           </div>
         </div>
 
       </div>
       <div style="margin-top:10px;font-size:.72rem;color:var(--muted);line-height:1.5">
-        💡 Your IT admin can also push these flags centrally via Admin Console
-        (<code style="font-size:.68rem">TranslationAPIAllowed</code> policy) — then no per-device setup is needed.
+        💡 IT admins can push these flags centrally via Admin Console
+        (<code style="font-size:.68rem">TranslationAPIAllowed</code> policy) — no per-device setup needed.
       </div>`;
     return;
   }
 
+  // ── Chromebook, flags set — check model availability ─
   el.innerHTML = '⏳ Checking...';
   try {
     const avail = await Translator.availability({ sourceLanguage: 'en', targetLanguage: 'sv' });
@@ -883,10 +957,10 @@ async function checkChromeAIAvailability() {
         to see model download status.</span>`;
     } else if (avail === 'downloadable' || avail === 'downloading') {
       el.style.color = '#22c55e';
-      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Language models will download automatically when you Connect to Room. No API key needed.';
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Language models will download automatically on first use. Fully offline after that.';
     } else {
       el.style.color = '#22c55e';
-      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models already available — fully offline, no API key needed.';
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models already downloaded — fully offline, no API key needed.';
     }
   } catch(e) {
     el.style.color = '';
