@@ -256,6 +256,7 @@
       <div class="ptab" onclick="setProvider('openai')">GPT-4o <span class="pill paid">paid</span></div>
       <div class="ptab" onclick="setProvider('gemini')">Gemini <span class="pill paid">paid</span></div>
       <div class="ptab" onclick="setProvider('ollama')">Ollama <span class="pill">free · local</span></div>
+      <div class="ptab" onclick="setProvider('chromeai')">Chrome AI <span class="pill">free · built-in</span></div>
     </div>
 
     <!-- Claude -->
@@ -370,6 +371,7 @@ const PRESETS = ['Arabic','Somali','Dari','Tigrinya','Kurdish','Turkish','Polish
 // ── Provider switcher ──────────────────────────────────
 window.setProvider = function(p) {
   currentProvider = p;
+  if (p === 'chromeai') checkChromeAIAvailability();
   document.querySelectorAll('.ptab').forEach((t, i) => {
     t.classList.toggle('active', ['anthropic','openai','gemini','ollama'][i] === p);
   });
@@ -399,7 +401,7 @@ window.connectRoom = async function() {
   roomCode = document.getElementById('room-code').value.trim().toUpperCase();
   if (!roomCode) { setStatus('Enter a room code', 'err'); return; }
   const key = getKey();
-  if (!key && currentProvider !== 'ollama') { setStatus('Enter an API key', 'err'); return; }
+  if (!key && currentProvider !== 'ollama' && currentProvider !== 'chromeai') { setStatus('Enter an API key', 'err'); return; }
 
   // Save keys
   localStorage.setItem('iesv_room-code', roomCode);
@@ -446,11 +448,12 @@ window.connectRoom = async function() {
 };
 
 function providerLabel() {
-  return {anthropic:'Claude',openai:'GPT-4o-mini',gemini:'Gemini Flash',ollama:'Ollama (local)'}[currentProvider];
+  return {anthropic:'Claude',openai:'GPT-4o-mini',gemini:'Gemini Flash',ollama:'Ollama (local)',chromeai:'Chrome AI'}[currentProvider];
 }
 
 function getKey() {
   if (currentProvider === 'ollama') return document.getElementById('key-ollama').value.trim() || 'http://localhost:11434';
+  if (currentProvider === 'chromeai') return '';
   return document.getElementById('key-' + currentProvider).value.trim() ||
          localStorage.getItem('iesv_key_' + currentProvider) || '';
 }
@@ -676,6 +679,7 @@ async function translateAndPush(text) {
     else if (currentProvider === 'openai')    translations = await callOpenAI(prompt);
     else if (currentProvider === 'gemini')    translations = await callGemini(prompt);
     else if (currentProvider === 'ollama')    translations = await callOllama(prompt);
+    else if (currentProvider === 'chromeai')  translations = await callChromeAI(text, [...allLangs]);
 
     selectedLangs.forEach(lang => {
       const el = document.getElementById('tt-' + slugify(lang));
@@ -698,6 +702,82 @@ async function translateAndPush(text) {
   setTimeout(() => {
     document.getElementById('mic-btn').className = isListening ? 'mic-btn listening' : 'mic-btn';
   }, 1000);
+}
+
+
+// ── Chrome Built-in Translator API ─────────────────────
+// Cache translators so we don't recreate them for every phrase
+const chromeTranslatorCache = {};
+
+async function callChromeAI(text, targetLangs) {
+  if (!('Translator' in self)) throw new Error('Chrome AI Translator not available. Ensure you are on Chrome 138+ with the flags enabled.');
+
+  const srcCode = document.getElementById('input-lang').value.split('-')[0]; // e.g. 'en'
+
+  // BCP-47 short codes for our lang display names
+  const langToBCP47 = {
+    'English':'en','Swedish':'sv','Arabic':'ar','Chinese':'zh','Dutch':'nl',
+    'French':'fr','German':'de','Greek':'el','Hindi':'hi','Indonesian':'id',
+    'Italian':'it','Japanese':'ja','Korean':'ko','Malay':'ms','Norwegian':'no',
+    'Persian':'fa','Polish':'pl','Portuguese':'pt','Romanian':'ro','Russian':'ru',
+    'Spanish':'es','Turkish':'tr','Ukrainian':'uk','Urdu':'ur','Vietnamese':'vi'
+  };
+
+  const results = {};
+  await Promise.all(targetLangs.map(async (displayLang) => {
+    const tgtCode = langToBCP47[displayLang];
+    if (!tgtCode) { results[displayLang] = `(unsupported: ${displayLang})`; return; }
+    if (tgtCode === srcCode) { results[displayLang] = text; return; }
+
+    const cacheKey = `${srcCode}->${tgtCode}`;
+    try {
+      if (!chromeTranslatorCache[cacheKey]) {
+        const avail = await Translator.availability({ sourceLanguage: srcCode, targetLanguage: tgtCode });
+        if (avail === 'unavailable') throw new Error(`Language pair ${srcCode}→${tgtCode} not supported`);
+        chromeTranslatorCache[cacheKey] = await Translator.create({
+          sourceLanguage: srcCode,
+          targetLanguage: tgtCode,
+          monitor(m) {
+            m.addEventListener('downloadprogress', e => {
+              setMicLabel(`Downloading ${displayLang} model… ${Math.round(e.loaded * 100)}%`, 'active');
+            });
+          }
+        });
+      }
+      results[displayLang] = await chromeTranslatorCache[cacheKey].translate(text);
+    } catch(e) {
+      results[displayLang] = `(error: ${e.message})`;
+    }
+  }));
+  return results;
+}
+
+async function checkChromeAIAvailability() {
+  const el = document.getElementById('chromeai-status');
+  if (!el) return;
+  if (!('Translator' in self)) {
+    el.innerHTML = '❌ <strong>Chrome AI not available.</strong> Requires Chrome 138+ on Chromebook Plus with flags enabled:<br>' +
+      '<code>chrome://flags/#optimization-guide-on-device-model</code> → Enabled<br>' +
+      '<code>chrome://flags/#language-detection-api</code> → Enabled<br>Then relaunch Chrome.';
+    el.style.color = 'var(--danger)';
+    return;
+  }
+  el.innerHTML = '⏳ Checking availability...';
+  try {
+    const avail = await Translator.availability({ sourceLanguage: 'en', targetLanguage: 'sv' });
+    if (avail === 'unavailable') {
+      el.innerHTML = '⚠️ Chrome AI present but en→sv pair unavailable. Try another language pair or check chrome://on-device-translation-internals/';
+      el.style.color = 'var(--warning, orange)';
+    } else if (avail === 'downloadable') {
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Language models will download on first use (~50–200MB per pair). No API key needed.';
+      el.style.color = 'var(--success, #22c55e)';
+    } else {
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models already downloaded. No API key needed.';
+      el.style.color = 'var(--success, #22c55e)';
+    }
+  } catch(e) {
+    el.innerHTML = `⚠️ Chrome AI check failed: ${e.message}`;
+  }
 }
 
 function parseJSON(raw) {
