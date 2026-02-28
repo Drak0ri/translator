@@ -949,7 +949,7 @@ window.sendMeetingTyped = async function(id) {
 // ── Chunk/interim state (per speaker keyed by id) ────────
 const spChunkBuffer = {};
 const spChunkTimer  = {};
-const CHUNK_MS = 12000;
+const CHUNK_MS = 6000;
 
 function spScheduleChunk(id, getText) {
   clearTimeout(spChunkTimer[id]);
