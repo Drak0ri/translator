@@ -321,6 +321,7 @@ window.joinRoom = async function() {
   if (rawPassword.length < 6) { err.textContent = 'Please enter the session password (min 6 characters).'; return; }
   if (!lang) { err.textContent = 'Please select your language.'; return; }
   err.textContent = '';
+  err.style.color = '';
   localStorage.setItem('lt_lang', lang);
 
   const pwToken = await hashPassword(rawPassword);
@@ -341,9 +342,16 @@ window.joinRoom = async function() {
     }
     const isChromeAI = speakerProvider === 'chromeai';
 
-    // Filter both language selects to match speaker's provider
+    // If Chrome AI and chosen language isn't supported, reject early with filtered list
+    if (isChromeAI && !CHROME_AI_LANGS.includes(lang)) {
+      populateLangSelect('j-lang', true, null, false);
+      err.textContent = `"${lang}" is not supported by Chrome AI. Please choose a supported language.`;
+      err.style.color = '#f59e0b';
+      return;
+    }
+
+    // Filter join select now we know the provider
     populateLangSelect('j-lang', isChromeAI, lang, !isChromeAI);
-    populateLangSelect('lang-sel', isChromeAI, lang, false);
 
     // Register — speaker reads all connections and translates into their languages
     await set(ref(db, `rooms/${myFirebasePath}/connections/${connId}`), { lang, joined: Date.now() });
@@ -361,8 +369,11 @@ window.joinRoom = async function() {
     document.getElementById('main-screen').style.display = 'block';
     document.getElementById('m-room-tag').textContent = room;
     document.getElementById('hero-lang').textContent = lang;
-    document.getElementById('lang-sel').value = lang;
     setStatus('ok', `Connected · <strong>${lang}</strong>`);
+
+    // Populate mid-meeting dropdown now that main screen is visible, then set value
+    populateLangSelect('lang-sel', isChromeAI, null, false);
+    document.getElementById('lang-sel').value = lang;
 
     // If Chrome AI, prewarm the translator for this language
     if (isChromeAI) prewarmListenerTranslator(lang);
