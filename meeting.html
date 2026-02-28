@@ -946,13 +946,47 @@ window.sendMeetingTyped = async function(id) {
   });
 })();
 
+// ── Chunk/interim state (per speaker keyed by id) ────────
+const spChunkBuffer = {};
+const spChunkTimer  = {};
+const CHUNK_MS = 12000;
+
+function spScheduleChunk(id, getText) {
+  clearTimeout(spChunkTimer[id]);
+  spChunkTimer[id] = setTimeout(async () => {
+    const text = getText().trim();
+    const sp = speakers.find(s => s.id === id);
+    if (text.length > 3 && sp) await translateAndPush(sp, text);
+    if (sp && sp.isRecording) spScheduleChunk(id, getText);
+  }, CHUNK_MS);
+}
+
+function spCancelChunk(id) {
+  clearTimeout(spChunkTimer[id]);
+  delete spChunkTimer[id];
+}
+
+function showSpTranscript(id, confirmed, interim) {
+  const lbl = document.getElementById('ptt-label-' + id);
+  if (!lbl) return;
+  if (interim) {
+    lbl.innerHTML = (confirmed ? escMtgHtml(confirmed) + ' ' : '') +
+      `<em style="color:var(--muted2);font-style:italic">${escMtgHtml(interim)}</em>`;
+  } else {
+    lbl.textContent = confirmed || 'SPACE or click to speak';
+  }
+}
+
+function escMtgHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 // ── PTT ───────────────────────────────────────────────
 window.startPTT = function(id) {
   const sp = speakers.find(s => s.id === id);
   if (!sp || sp.isRecording) return;
   const lbl = document.getElementById('ptt-label-' + id);
   if (lbl && lbl.textContent === 'Warming up mic...') {
-    // Stuck — just mark ready and let them proceed
     markAllReady();
     return;
   }
@@ -961,29 +995,49 @@ window.startPTT = function(id) {
   if (!SR) { alert('Use Chrome for speech recognition.'); return; }
 
   sp.isRecording = true;
+  spChunkBuffer[id] = '';
   setSpStatus(id, 'recording', 'Listening...');
   setPTTState(id, 'recording');
 
   sp.recognition = new SR();
   sp.recognition.lang = sp.langCode;
-  sp.recognition.continuous = false;
-  sp.recognition.interimResults = false;
+  sp.recognition.continuous = true;
+  sp.recognition.interimResults = true;
 
-  sp.recognition.onresult = async e => {
-    const text = e.results[0][0].transcript.trim();
-    if (text.length > 2) {
-      document.getElementById('ptt-label-' + id).textContent = text;
-      await translateAndPush(sp, text);
+  sp.recognition.onresult = e => {
+    let newFinal = '', currentInterim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) newFinal += e.results[i][0].transcript;
+      else currentInterim += e.results[i][0].transcript;
     }
+    if (newFinal) spChunkBuffer[id] = (spChunkBuffer[id] ? spChunkBuffer[id] + ' ' : '') + newFinal.trim();
+    showSpTranscript(id, spChunkBuffer[id], currentInterim);
   };
-  sp.recognition.onerror = e => {
+  sp.recognition.onerror = () => {
+    spCancelChunk(id);
     setSpStatus(id, 'idle', 'Ready');
     setPTTState(id, 'idle');
     sp.isRecording = false;
+    document.getElementById('ptt-label-' + id).textContent = 'SPACE or click to speak';
   };
-  sp.recognition.onend = () => {
-    if (sp.isRecording) sp.isRecording = false;
+  sp.recognition.onend = async () => {
+    spCancelChunk(id);
+    const full = (spChunkBuffer[id] || '').trim();
+    spChunkBuffer[id] = '';
+    if (full.length > 2) {
+      await translateAndPush(sp, full);
+    } else {
+      setSpStatus(id, 'idle', 'Ready');
+      setPTTState(id, 'idle');
+      document.getElementById('ptt-label-' + id).textContent = 'SPACE or click to speak';
+    }
+    sp.isRecording = false;
   };
+  spScheduleChunk(id, () => {
+    const text = (spChunkBuffer[id] || '').trim();
+    spChunkBuffer[id] = '';
+    return text;
+  });
   sp.recognition.start();
 };
 
@@ -991,6 +1045,7 @@ window.stopPTT = function(id) {
   const sp = speakers.find(s => s.id === id);
   if (!sp) return;
   sp.isRecording = false;
+  spCancelChunk(id);
   if (sp.recognition) {
     try { sp.recognition.stop(); } catch(e) {}
   }
