@@ -364,21 +364,24 @@
       <div class="ptab" onclick="setProvider('ollama')">Ollama <span class="pill free">free</span></div>
     </div>
 
-    <div class="provider-field active" id="pf-anthropic">
+    <div class="provider-field active" id="pf-chromeai">
+      <div class="field-note" id="chromeai-status" style="font-size:.85rem;line-height:1.5">Checking Chrome AI availability...</div>
+    </div>
+    <div class="provider-field" id="pf-anthropic">
       <div class="field-single">
-        <label>Anthropic API Key</label>
+        <label>API Key</label>
         <input type="password" id="key-anthropic" placeholder="sk-ant-..." />
       </div>
     </div>
     <div class="provider-field" id="pf-openai">
       <div class="field-single">
-        <label>OpenAI API Key</label>
+        <label>API Key</label>
         <input type="password" id="key-openai" placeholder="sk-..." />
       </div>
     </div>
     <div class="provider-field" id="pf-gemini">
       <div class="field-single">
-        <label>Gemini API Key</label>
+        <label>API Key</label>
         <input type="password" id="key-gemini" placeholder="AIzaSy..." />
       </div>
     </div>
@@ -393,9 +396,6 @@
           <input type="text" id="ollama-model" placeholder="qwen2.5:7b" />
         </div>
       </div>
-    </div>
-    <div class="provider-field" id="pf-chromeai">
-      <div class="field-note" id="chromeai-status" style="font-size:.85rem;line-height:1.5">Checking Chrome AI availability...</div>
     </div>
 
     <div class="field-single" style="margin-top:4px">
