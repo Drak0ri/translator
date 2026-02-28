@@ -758,13 +758,23 @@ window.startMeeting = async function() {
     // Listen for listener connections
     onValue(ref(db, `rooms/${firebasePath}/connections`), snap => {
       if (!snap.exists()) { listenerLangs = new Set(); return; }
-      listenerLangs = new Set(Object.values(snap.val()).map(c => c.lang).filter(Boolean));
+      const newLangs = new Set(Object.values(snap.val()).map(c => c.lang).filter(Boolean));
+      // Chrome AI: prewarm any language that just appeared (listener joined mid-meeting)
+      if (currentProvider === 'chromeai') {
+        const speakers = document.querySelectorAll('.speaker-row');
+        const srcCode = speakers.length
+          ? document.getElementById(`sp-lang-0`)?.value?.split('-')[0] || 'en'
+          : 'en';
+        const newOnly = [...newLangs].filter(l => !listenerLangs.has(l));
+        if (newOnly.length) prewarmChromeTranslators(srcCode, newOnly);
+      }
+      listenerLangs = newLangs;
       const n = Object.keys(snap.val()).length;
       document.getElementById('conn-text').textContent = `${n} listener${n===1?'':'s'}`;
     });
 
     sessionStartTime = Date.now();
-    await set(ref(db, `rooms/${firebasePath}/active`), true);
+    await set(ref(db, `rooms/${firebasePath}/active`), { active: true, provider: currentProvider });
     await set(ref(db, `rooms/${firebasePath}/latest`), {text:'',translations:{},ts:Date.now(),langs:[]});
 
     // Show meeting screen
