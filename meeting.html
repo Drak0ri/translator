@@ -1417,24 +1417,109 @@ async function callChromeAI(text, targetLangs, srcCode) {
 async function checkChromeAIAvailability() {
   const el = document.getElementById('chromeai-status');
   if (!el) return;
+
   if (!('Translator' in self)) {
-    el.innerHTML = '❌ <strong>Chrome AI not available.</strong> Requires Chrome 138+ on Chromebook Plus.<br>' +
-      'Enable these flags then relaunch Chrome:<br>' +
-      '<code>chrome://flags/#optimization-guide-on-device-model</code> → Enabled<br>' +
-      '<code>chrome://flags/#language-detection-api</code> → Enabled';
-    el.style.color = 'var(--danger)';
+    el.style.color = '';
+    el.innerHTML = `
+      <div style="color:var(--warn,#f59e0b);font-weight:600;margin-bottom:10px">
+        ⚠️ Chrome AI not active on this device
+      </div>
+      <div style="font-size:.8rem;color:var(--muted2);margin-bottom:14px">
+        Two Chrome flags need enabling, then Chrome must relaunch. Takes about 60 seconds.
+        <br>Requires <strong>Chromebook Plus</strong> with Chrome 138+.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+
+        <div style="display:flex;align-items:flex-start;gap:12px;background:var(--surface);
+            border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+          <div style="background:var(--accent);color:#fff;border-radius:50%;width:20px;height:20px;
+              display:flex;align-items:center;justify-content:center;font-size:.72rem;
+              font-weight:700;flex-shrink:0;margin-top:1px">1</div>
+          <div style="flex:1;font-size:.8rem;line-height:1.6">
+            <div style="color:var(--text);margin-bottom:4px">Enable the <strong>on-device AI model</strong> flag</div>
+            <div style="color:var(--muted);font-size:.73rem;margin-bottom:6px">
+              Opens Chrome flags. Find <code style="font-size:.7rem">optimization-guide-on-device-model</code> and set to <strong>Enabled BypassPerfRequirement</strong>
+            </div>
+            <button onclick="window.open('chrome://flags/#optimization-guide-on-device-model','_blank')"
+              style="background:var(--accent);color:#fff;border:none;border-radius:6px;
+              padding:5px 12px;font-size:.75rem;cursor:pointer;font-family:inherit">
+              Open Flag 1 ↗
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;background:var(--surface);
+            border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+          <div style="background:var(--accent);color:#fff;border-radius:50%;width:20px;height:20px;
+              display:flex;align-items:center;justify-content:center;font-size:.72rem;
+              font-weight:700;flex-shrink:0;margin-top:1px">2</div>
+          <div style="flex:1;font-size:.8rem;line-height:1.6">
+            <div style="color:var(--text);margin-bottom:4px">Enable the <strong>language detection API</strong> flag</div>
+            <div style="color:var(--muted);font-size:.73rem;margin-bottom:6px">
+              Opens Chrome flags. Find <code style="font-size:.7rem">language-detection-api</code> and set to <strong>Enabled</strong>
+            </div>
+            <button onclick="window.open('chrome://flags/#language-detection-api','_blank')"
+              style="background:var(--accent);color:#fff;border:none;border-radius:6px;
+              padding:5px 12px;font-size:.75rem;cursor:pointer;font-family:inherit">
+              Open Flag 2 ↗
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;background:var(--surface);
+            border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+          <div style="background:var(--muted);color:#fff;border-radius:50%;width:20px;height:20px;
+              display:flex;align-items:center;justify-content:center;font-size:.72rem;
+              font-weight:700;flex-shrink:0;margin-top:1px">3</div>
+          <div style="flex:1;font-size:.8rem;line-height:1.6">
+            <div style="color:var(--text);margin-bottom:4px">Click <strong>Relaunch</strong> in Chrome</div>
+            <div style="color:var(--muted);font-size:.73rem">
+              A blue Relaunch button appears at the bottom of the flags page after changing a flag.
+              Chrome will restart and return to this page.
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px;background:var(--surface);
+            border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+          <div style="background:var(--muted);color:#fff;border-radius:50%;width:20px;height:20px;
+              display:flex;align-items:center;justify-content:center;font-size:.72rem;
+              font-weight:700;flex-shrink:0;margin-top:1px">4</div>
+          <div style="flex:1;font-size:.8rem;line-height:1.6">
+            <div style="color:var(--text);margin-bottom:4px">Come back to this page and re-select <strong>Chrome AI</strong></div>
+            <div style="color:var(--muted);font-size:.73rem">
+              The check will run again automatically. If it passes, you're done.
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div style="margin-top:10px;font-size:.72rem;color:var(--muted);line-height:1.5">
+        💡 Your IT admin can also push these flags centrally via Admin Console
+        (<code style="font-size:.68rem">TranslationAPIAllowed</code> policy) — then no per-device setup is needed.
+      </div>`;
     return;
   }
+
   el.innerHTML = '⏳ Checking...';
   try {
     const avail = await Translator.availability({ sourceLanguage: 'en', targetLanguage: 'sv' });
     if (avail === 'unavailable') {
-      el.innerHTML = '⚠️ Chrome AI present but unavailable. Check <code>chrome://on-device-translation-internals/</code>';
+      el.style.color = 'orange';
+      el.innerHTML = `⚠️ <strong>Flags are set but language models are unavailable.</strong><br>
+        <span style="font-size:.78rem">Check
+        <button onclick="window.open('chrome://on-device-translation-internals/','_blank')"
+          style="background:none;border:1px solid currentColor;border-radius:4px;padding:2px 8px;
+          font-size:.73rem;cursor:pointer;color:inherit;font-family:inherit;margin:0 2px">
+          Open Translation Internals ↗
+        </button>
+        to see model download status.</span>`;
     } else {
-      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models download automatically when you click Start Meeting. No API key needed — offline after download.';
       el.style.color = '#22c55e';
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models download automatically when you click Start Meeting. No API key needed — offline after download.';
     }
   } catch(e) {
+    el.style.color = '';
     el.innerHTML = `⚠️ Check failed: ${e.message}`;
   }
 }
