@@ -700,21 +700,8 @@ window.startMeeting = async function() {
     applyProjectorMode();
     warmUpMic();
     if (currentProvider === 'chromeai') prewarmChromeTranslators();
-    // After warmup period, signal buttons are ready
-    setTimeout(() => {
-      speakers.forEach(sp => {
-        const lbl = document.getElementById('ptt-label-' + sp.id);
-        if (lbl && lbl.textContent === 'Hold to speak') {
-          lbl.textContent = '✓ Ready — hold to speak';
-          const btn = document.getElementById('ptt-' + sp.id);
-          if (btn) btn.style.borderColor = 'var(--success)';
-          setTimeout(() => {
-            if (btn) btn.style.borderColor = '';
-            if (lbl) lbl.textContent = 'Hold to speak';
-          }, 2000);
-        }
-      });
-    }, speakers.length * 400 + 500);
+    // Prewarm the translation provider with a silent test phrase
+    prewarmTranslationProvider();
   } catch(e) { setSetupStatus('Firebase error: ' + e.message, 'err'); }
 };
 
@@ -911,6 +898,109 @@ function addHistory(sp, text, idx, translations) {
 }
 
 // Projector is always on — apply on build
+
+// ── Translation provider prewarm ────────────────────────
+// Fires a real (silent) test translation right after meeting starts.
+// This wakes up cold API connections, validates keys, and proves the
+// translation cards work — user sees a test result before their first PTT.
+async function prewarmTranslationProvider() {
+  // Use first speaker as test source
+  const sp = speakers[0];
+  if (!sp) return;
+  const allLangs = getAllLangs();
+  if (allLangs.length === 0) return;
+
+  // Wait for mic warmup to finish (max 4s), then run translation prewarm
+  // This ensures we don't compete with Chrome's user-gesture requirement
+  await new Promise(resolve => {
+    const check = setInterval(() => {
+      const lbl = document.getElementById('ptt-label-' + sp.id);
+      const ready = lbl && lbl.textContent !== 'Warming up mic...';
+      if (ready) { clearInterval(check); resolve(); }
+    }, 200);
+    setTimeout(() => { clearInterval(check); resolve(); }, 4500); // hard bail
+  });
+
+  // Show the display area with a "checking..." state
+  const idx = speakers.indexOf(sp);
+  document.getElementById('display-empty').style.display = 'none';
+  document.getElementById('display-content').style.display = 'block';
+  document.getElementById('source-num').textContent = idx + 1;
+  document.getElementById('source-num').style.background = SPEAKER_HEX[idx];
+  document.getElementById('source-name').textContent = sp.name + ' · ' + sp.langLabel;
+  document.getElementById('display-original').textContent = 'Checking translator…';
+  document.getElementById('display-original').className = 'display-original';
+  allLangs.forEach(lang => {
+    const el = document.getElementById('tc-' + slugify(lang));
+    if (el) { el.textContent = '…'; el.className = 'tcard-text loading'; }
+  });
+
+  const testPhrase = 'Hello';
+  const prompt = `Translate this English text into: ${allLangs.join(', ')}\nReturn ONLY valid JSON, language names as keys, translations as values. No markdown.\n\nText: "${testPhrase}"`;
+
+  try {
+    let translations;
+    if      (currentProvider === 'anthropic') translations = await callAnthropic(prompt);
+    else if (currentProvider === 'openai')    translations = await callOpenAI(prompt);
+    else if (currentProvider === 'gemini')    translations = await callGemini(prompt);
+    else if (currentProvider === 'chromeai')  translations = await callChromeAI(testPhrase, allLangs, sp.langCode.split('-')[0]);
+    else                                      translations = await callOllama(prompt);
+
+    // Show the test result briefly so user can see it's working
+    document.getElementById('display-original').textContent = '✓ Ready — "Hello"';
+    allLangs.forEach(lang => {
+      const el = document.getElementById('tc-' + slugify(lang));
+      const card = el?.closest('.tcard');
+      if (el && translations[lang]) {
+        el.textContent = translations[lang];
+        el.className = 'tcard-text';
+        card?.classList.add('flash');
+        setTimeout(() => card?.classList.remove('flash'), 1500);
+      }
+    });
+
+    // Signal all PTT buttons as truly ready
+    speakers.forEach(s => {
+      const lbl = document.getElementById('ptt-label-' + s.id);
+      const btn = document.getElementById('ptt-' + s.id);
+      if (lbl) lbl.textContent = '✓ Ready — hold to speak';
+      if (btn) { btn.style.borderColor = 'var(--success)'; }
+    });
+
+    // Fade back to idle after 3s
+    setTimeout(() => {
+      document.getElementById('display-original').textContent = '—';
+      document.getElementById('display-empty').style.display = 'block';
+      document.getElementById('display-content').style.display = 'none';
+      allLangs.forEach(lang => {
+        const el = document.getElementById('tc-' + slugify(lang));
+        if (el) { el.textContent = '—'; el.className = 'tcard-text'; }
+      });
+      speakers.forEach(s => {
+        const lbl = document.getElementById('ptt-label-' + s.id);
+        const btn = document.getElementById('ptt-' + s.id);
+        if (lbl) lbl.textContent = 'Hold to speak';
+        if (btn) btn.style.borderColor = '';
+      });
+    }, 3000);
+
+  } catch(e) {
+    // Prewarm failed — show error state in cards, don't block the meeting
+    document.getElementById('display-original').textContent = '⚠ Translator error';
+    allLangs.forEach(lang => {
+      const el = document.getElementById('tc-' + slugify(lang));
+      if (el) { el.textContent = '⚠ Check API key'; el.className = 'tcard-text loading'; }
+    });
+    speakers.forEach(s => {
+      const lbl = document.getElementById('ptt-label-' + s.id);
+      const btn = document.getElementById('ptt-' + s.id);
+      if (lbl) lbl.textContent = 'Hold to speak';
+      if (btn) btn.style.borderColor = 'var(--danger, #e05)';
+      setTimeout(() => { if (btn) btn.style.borderColor = ''; }, 4000);
+    });
+    console.warn('Translation prewarm failed:', e.message);
+  }
+}
 
 // ── Mic warmup ─────────────────────────────────────────
 // Starts and immediately stops a recognition session for each speaker language.
