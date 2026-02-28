@@ -191,6 +191,26 @@
   .ptt-btn.translating{background:rgba(37,99,235,.08);border-color:var(--accent);color:#93c5fd}
   .ptt-btn .ptt-icon{font-size:1.4rem;transition:transform .15s}
   .ptt-btn.recording .ptt-icon{transform:scale(1.15)}
+
+  /* Type toggle button */
+  .type-toggle-btn{margin-top:8px;width:100%;border:1.5px dashed var(--border);border-radius:10px;
+    padding:8px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;
+    font-size:.78rem;cursor:pointer;transition:all .15s}
+  .type-toggle-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+  .type-toggle-btn.open{border-style:solid;border-color:var(--accent2);color:var(--accent2);background:rgba(37,99,235,.05)}
+
+  /* Type input panel */
+  .sp-type-panel{display:none;flex-direction:column;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+  .sp-type-panel.open{display:flex}
+  .sp-type-panel textarea{width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--border);
+    background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;
+    font-size:.88rem;resize:none;box-sizing:border-box;line-height:1.5;outline:none}
+  .sp-type-panel textarea:focus{border-color:var(--accent2)}
+  .sp-type-send{padding:7px 18px;border-radius:8px;border:none;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff;font-family:'DM Sans',sans-serif;font-size:.82rem;
+    font-weight:600;cursor:pointer;align-self:flex-end}
+  .sp-type-send:disabled{opacity:.5;cursor:not-allowed}
   @keyframes rring{
     0%{box-shadow:0 0 0 0 rgba(220,38,38,.3)}
     70%{box-shadow:0 0 0 12px rgba(220,38,38,0)}
@@ -818,6 +838,15 @@ function buildMeetingUI() {
         <span class="ptt-icon">🎤</span>
         <span id="ptt-label-${sp.id}">Warming up mic...</span>
       </button>
+      <button class="type-toggle-btn" id="type-toggle-${sp.id}"
+        onclick="toggleTypePanel('${sp.id}')">⌨️ Type instead</button>
+      <div class="sp-type-panel" id="type-panel-${sp.id}">
+        <textarea id="type-ta-${sp.id}" rows="2"
+          placeholder="${sp.name}: type your message, then Send (or Ctrl+Enter)…"
+          onkeydown="handleMeetingTypeKey(event,'${sp.id}')"></textarea>
+        <button class="sp-type-send" id="type-send-${sp.id}"
+          onclick="sendMeetingTyped('${sp.id}')">Send ↵</button>
+      </div>
     `;
     area.appendChild(panel);
   });
@@ -844,6 +873,48 @@ function renderTransGrid() {
 function getAllLangs() {
   return [...new Set([...selectedLangs, ...listenerLangs])];
 }
+
+// ── Text input ─────────────────────────────────────────
+window.toggleTypePanel = function(id) {
+  const panel = document.getElementById('type-panel-' + id);
+  const btn   = document.getElementById('type-toggle-' + id);
+  const open  = panel.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  btn.textContent = open ? '⌨️ Hide text input' : '⌨️ Type instead';
+  if (open) setTimeout(() => document.getElementById('type-ta-' + id)?.focus(), 50);
+};
+
+window.handleMeetingTypeKey = function(e, id) {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendMeetingTyped(id); }
+};
+
+window.sendMeetingTyped = async function(id) {
+  const ta   = document.getElementById('type-ta-' + id);
+  const btn  = document.getElementById('type-send-' + id);
+  const stat = document.getElementById('status-' + id);
+  const text = ta.value.trim();
+  if (!text) return;
+
+  const sp = speakers.find(s => s.id === id);
+  if (!sp) return;
+
+  btn.disabled = true;
+  btn.textContent = '⏳';
+  if (stat) { stat.className = 'sp-status translating'; stat.textContent = 'Translating…'; }
+
+  try {
+    await translateAndPush(sp, text);
+    ta.value = '';
+    if (stat) { stat.className = 'sp-status done'; stat.textContent = 'Sent'; }
+    setTimeout(() => { if (stat) { stat.className = 'sp-status idle'; stat.textContent = 'Ready'; }}, 2000);
+  } catch(e) {
+    if (stat) { stat.className = 'sp-status idle'; stat.textContent = 'Error'; }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send ↵';
+    ta.focus();
+  }
+};
 
 // ── PTT ───────────────────────────────────────────────
 window.startPTT = function(id) {
