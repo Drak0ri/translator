@@ -230,10 +230,15 @@
       <div class="ptab" onclick="setProvider('ollama')">Ollama <span class="pill">free · local</span></div>
     </div>
 
+    <!-- Chrome AI -->
+    <div class="provider-field active" id="pf-chromeai">
+      <div class="field-note" id="chromeai-status" style="font-size:.85rem;line-height:1.5">Checking Chrome AI availability...</div>
+    </div>
+
     <!-- Claude -->
-    <div class="provider-field active" id="pf-anthropic">
+    <div class="provider-field" id="pf-anthropic">
       <div class="field-single">
-        <label>Anthropic API Key</label>
+        <label>API Key</label>
         <input type="password" id="key-anthropic" placeholder="sk-ant-..." />
         <div class="hint">Get at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys. ~$0.75 per 30-min meeting.</div>
       </div>
@@ -242,7 +247,7 @@
     <!-- OpenAI -->
     <div class="provider-field" id="pf-openai">
       <div class="field-single">
-        <label>OpenAI API Key</label>
+        <label>API Key</label>
         <input type="password" id="key-openai" placeholder="sk-..." />
         <div class="hint">Get at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a> → API Keys. Uses gpt-4o-mini.</div>
       </div>
@@ -251,7 +256,7 @@
     <!-- Gemini -->
     <div class="provider-field" id="pf-gemini">
       <div class="field-single">
-        <label>Google Gemini API Key</label>
+        <label>API Key</label>
         <input type="password" id="key-gemini" placeholder="AIzaSy..." />
         <div class="hint">Get at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>. Uses gemini-2.5-flash — currently the recommended stable model.</div>
       </div>
