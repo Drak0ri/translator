@@ -537,8 +537,8 @@ window.addEventListener('load', () => {
   if (savedProvider) setProvider(savedProvider);
 
   // Default 2 speakers
-  addSpeaker('Speaker 1', 'en-GB');
-  addSpeaker('Speaker 2', 'sv-SE');
+  addSpeaker('', 'en-GB');
+  addSpeaker('', 'sv-SE');
 
   renderChips();
 });
@@ -583,7 +583,7 @@ window.addSpeaker = function(defaultName = '', defaultLang = 'en-GB') {
 
   row.innerHTML = `
     <div class="speaker-num s-num-${idx+1}">${idx+1}</div>
-    <input type="text" placeholder="Name (optional)" value="${defaultName}"
+    <input type="text" placeholder="Name (optional)" value=""
       oninput="updateSpeakerName('${id}', this.value)" style="min-width:80px" />
     <div class="speaker-lang-sel">
       <select onchange="updateSpeakerLang('${id}', this.value)">${langOptions}</select>
@@ -597,7 +597,10 @@ window.addSpeaker = function(defaultName = '', defaultLang = 'en-GB') {
 
 window.updateSpeakerName = function(id, name) {
   const sp = speakers.find(s => s.id === id);
-  if (sp) sp.name = name || sp.id;
+  if (sp) {
+    const idx = speakers.indexOf(sp);
+    sp.name = name.trim() || `Speaker ${idx + 1}`;
+  }
 };
 window.updateSpeakerLang = function(id, code) {
   const sp = speakers.find(s => s.id === id);
@@ -623,7 +626,7 @@ function renderSpeakerSetupRows() {
     ).join('');
     row.innerHTML = `
       <div class="speaker-num s-num-${idx+1}">${idx+1}</div>
-      <input type="text" placeholder="Name (optional)" value="${sp.name.startsWith('Speaker') ? '' : sp.name}"
+      <input type="text" placeholder="Name (optional)" value="${sp.name.startsWith('Speaker ') && sp.name === 'Speaker ' + (speakers.indexOf(sp)+1) ? '' : sp.name}"
         oninput="updateSpeakerName('${sp.id}', this.value)" style="min-width:80px" />
       <div class="speaker-lang-sel">
         <select onchange="updateSpeakerLang('${sp.id}', this.value)">${langOptions}</select>
@@ -696,6 +699,7 @@ window.startMeeting = async function() {
     buildMeetingUI();
     applyProjectorMode();
     warmUpMic();
+    if (currentProvider === 'chromeai') prewarmChromeTranslators();
     // After warmup period, signal buttons are ready
     setTimeout(() => {
       speakers.forEach(sp => {
@@ -1096,35 +1100,108 @@ window.endMeeting = function() {
 // ── API calls ──────────────────────────────────────────
 // ── Chrome Built-in Translator API ─────────────────────
 const chromeTranslatorCache = {};
+const chromeDownloadState = {};
+
+const LANG_TO_BCP47 = {
+  'English':'en','Swedish':'sv','Arabic':'ar','Chinese':'zh','Dutch':'nl',
+  'French':'fr','German':'de','Greek':'el','Hindi':'hi','Indonesian':'id',
+  'Italian':'it','Japanese':'ja','Korean':'ko','Malay':'ms','Norwegian':'no',
+  'Persian':'fa','Polish':'pl','Portuguese':'pt','Romanian':'ro','Russian':'ru',
+  'Spanish':'es','Turkish':'tr','Ukrainian':'uk','Urdu':'ur','Vietnamese':'vi'
+};
+
+// Called from doStartMeeting (inside Start Meeting button click = user gesture)
+async function prewarmChromeTranslators() {
+  if (!('Translator' in self)) return;
+  const allOutputLangs = [...selectedLangs]; // the display-name langs chosen in setup
+  // Get all unique src language codes from speakers
+  const srcCodes = [...new Set(speakers.map(s => s.langCode.split('-')[0]))];
+
+  for (const srcCode of srcCodes) {
+    for (const displayLang of allOutputLangs) {
+      const tgtCode = LANG_TO_BCP47[displayLang];
+      if (!tgtCode || tgtCode === srcCode) continue;
+      const key = `${srcCode}->${tgtCode}`;
+      if (chromeTranslatorCache[key] || chromeDownloadState[key] === 'downloading') continue;
+      try {
+        const avail = await Translator.availability({ sourceLanguage: srcCode, targetLanguage: tgtCode });
+        if (avail === 'unavailable') continue;
+        chromeDownloadState[key] = 'downloading';
+        showChromeDownloadBar();
+        chromeTranslatorCache[key] = await Translator.create({
+          sourceLanguage: srcCode,
+          targetLanguage: tgtCode,
+          monitor(m) {
+            m.addEventListener('downloadprogress', e => updateChromeDownloadBar(key, e.loaded));
+          }
+        });
+        chromeDownloadState[key] = 'ready';
+        updateChromeDownloadBar(key, 1);
+      } catch(e) {
+        chromeDownloadState[key] = 'error';
+        console.warn('Chrome AI prewarm failed:', key, e.message);
+      }
+    }
+  }
+  maybeHideChromeDownloadBar();
+}
+
+function showChromeDownloadBar() {
+  if (document.getElementById('chrome-dl-bar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'chrome-dl-bar';
+  bar.style.cssText = `position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    background:var(--card);border:1px solid var(--border);border-radius:12px;
+    padding:12px 18px;font-family:'DM Sans',sans-serif;font-size:.82rem;
+    color:var(--muted2);z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.3);
+    min-width:280px;text-align:center;`;
+  bar.innerHTML = `<div style="margin-bottom:6px">⬇️ Downloading Chrome AI language models…</div>
+    <div style="background:var(--surface);border-radius:6px;height:6px;overflow:hidden">
+      <div id="chrome-dl-fill" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .3s"></div>
+    </div>
+    <div id="chrome-dl-detail" style="margin-top:5px;font-size:.74rem;color:var(--muted)">Starting…</div>`;
+  document.body.appendChild(bar);
+}
+
+const pairProgress = {};
+function updateChromeDownloadBar(key, loaded) {
+  pairProgress[key] = loaded;
+  const fill = document.getElementById('chrome-dl-fill');
+  const detail = document.getElementById('chrome-dl-detail');
+  if (!fill) return;
+  const vals = Object.values(pairProgress);
+  const avg = vals.reduce((a,b) => a+b, 0) / vals.length;
+  fill.style.width = Math.round(avg * 100) + '%';
+  const done = vals.filter(v => v >= 1).length;
+  if (detail) detail.textContent = `${done} of ${vals.length} language pair${vals.length !== 1 ? 's' : ''} ready`;
+}
+
+function maybeHideChromeDownloadBar() {
+  const allDone = Object.values(chromeDownloadState).every(s => s === 'ready' || s === 'error');
+  if (!allDone) return;
+  const bar = document.getElementById('chrome-dl-bar');
+  if (!bar) return;
+  bar.innerHTML = `<div>✅ Chrome AI models ready</div>`;
+  setTimeout(() => bar.remove(), 2000);
+}
 
 async function callChromeAI(text, targetLangs, srcCode) {
-  if (!('Translator' in self)) throw new Error('Chrome AI Translator not available on this device/browser.');
-
-  const langToBCP47 = {
-    'English':'en','Swedish':'sv','Arabic':'ar','Chinese':'zh','Dutch':'nl',
-    'French':'fr','German':'de','Greek':'el','Hindi':'hi','Indonesian':'id',
-    'Italian':'it','Japanese':'ja','Korean':'ko','Malay':'ms','Norwegian':'no',
-    'Persian':'fa','Polish':'pl','Portuguese':'pt','Romanian':'ro','Russian':'ru',
-    'Spanish':'es','Turkish':'tr','Ukrainian':'uk','Urdu':'ur','Vietnamese':'vi'
-  };
-
+  if (!('Translator' in self)) throw new Error('Chrome AI not available — check flags and device requirements.');
   const results = {};
   await Promise.all(targetLangs.map(async (displayLang) => {
-    const tgtCode = langToBCP47[displayLang];
+    const tgtCode = LANG_TO_BCP47[displayLang];
     if (!tgtCode) { results[displayLang] = `(unsupported: ${displayLang})`; return; }
     if (tgtCode === srcCode) { results[displayLang] = text; return; }
-
-    const cacheKey = `${srcCode}->${tgtCode}`;
+    const key = `${srcCode}->${tgtCode}`;
     try {
-      if (!chromeTranslatorCache[cacheKey]) {
-        const avail = await Translator.availability({ sourceLanguage: srcCode, targetLanguage: tgtCode });
-        if (avail === 'unavailable') throw new Error(`${srcCode}→${tgtCode} not supported`);
-        chromeTranslatorCache[cacheKey] = await Translator.create({
-          sourceLanguage: srcCode,
-          targetLanguage: tgtCode
-        });
+      if (!chromeTranslatorCache[key]) {
+        if (chromeDownloadState[key] === 'downloading') {
+          results[displayLang] = '(model still downloading — try again shortly)';
+          return;
+        }
+        throw new Error(`Model not ready for ${displayLang}. Restart meeting to trigger download.`);
       }
-      results[displayLang] = await chromeTranslatorCache[cacheKey].translate(text);
+      results[displayLang] = await chromeTranslatorCache[key].translate(text);
     } catch(e) {
       results[displayLang] = `(error: ${e.message})`;
     }
@@ -1136,9 +1213,10 @@ async function checkChromeAIAvailability() {
   const el = document.getElementById('chromeai-status');
   if (!el) return;
   if (!('Translator' in self)) {
-    el.innerHTML = '❌ <strong>Chrome AI not available.</strong> Requires Chrome 138+ on Chromebook Plus with flags enabled:<br>' +
+    el.innerHTML = '❌ <strong>Chrome AI not available.</strong> Requires Chrome 138+ on Chromebook Plus.<br>' +
+      'Enable these flags then relaunch Chrome:<br>' +
       '<code>chrome://flags/#optimization-guide-on-device-model</code> → Enabled<br>' +
-      '<code>chrome://flags/#language-detection-api</code> → Enabled<br>Then relaunch Chrome.';
+      '<code>chrome://flags/#language-detection-api</code> → Enabled';
     el.style.color = 'var(--danger)';
     return;
   }
@@ -1146,13 +1224,10 @@ async function checkChromeAIAvailability() {
   try {
     const avail = await Translator.availability({ sourceLanguage: 'en', targetLanguage: 'sv' });
     if (avail === 'unavailable') {
-      el.innerHTML = '⚠️ Chrome AI present but en→sv unavailable. Try checking <code>chrome://on-device-translation-internals/</code>';
-    } else if (avail === 'downloadable') {
-      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Language models download on first use (~50–200MB per pair). No API key needed — fully offline after download.';
-      el.style.color = 'var(--success, #22c55e)';
+      el.innerHTML = '⚠️ Chrome AI present but unavailable. Check <code>chrome://on-device-translation-internals/</code>';
     } else {
-      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models already available. Fully offline, no API key needed.';
-      el.style.color = 'var(--success, #22c55e)';
+      el.innerHTML = '✅ <strong>Chrome AI ready.</strong> Models download automatically when you click Start Meeting. No API key needed — offline after download.';
+      el.style.color = '#22c55e';
     }
   } catch(e) {
     el.innerHTML = `⚠️ Check failed: ${e.message}`;
