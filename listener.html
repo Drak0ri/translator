@@ -136,6 +136,10 @@
         oninput="this.value=this.value.toUpperCase()" />
     </div>
     <div class="field">
+      <label>Session Password</label>
+      <input type="password" id="j-password" placeholder="Enter the password from the organiser" maxlength="40" autocomplete="off" />
+    </div>
+    <div class="field">
       <label>Your Language</label>
       <select id="j-lang">
         <option value="">— Select your language —</option>
@@ -240,7 +244,14 @@ const ALL_LANGS = ['English','Albanian','Amharic','Arabic','Dari','Dutch','Farsi
   'Polish','Portuguese','Romanian','Russian','Somali','Spanish','Swedish','Tigrinya',
   'Turkish','Ukrainian','Urdu','Vietnamese'];
 
-let db = null, myLang = '', myRoom = '', connId = '', joinedAt = 0;
+let db = null, myLang = '', myRoom = '', connId = '', joinedAt = 0, myFirebasePath = '';
+
+async function hashPassword(password) {
+  const encoded = new TextEncoder().encode(password.normalize('NFC'));
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.slice(0, 4).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 let currentTranslation = '', lastTranslations = {};
 let extraLangs = new Set();
 let extrasOpen = false;
@@ -265,13 +276,18 @@ window.addEventListener('load', () => {
 // ── Join ──────────────────────────────────────────────
 window.joinRoom = async function() {
   const room = document.getElementById('j-room').value.trim().toUpperCase();
+  const rawPassword = document.getElementById('j-password').value;
   const sel = document.getElementById('j-lang').value;
   const lang = sel === '__custom__' ? document.getElementById('j-custom').value.trim() : sel;
   const err = document.getElementById('join-err');
   if (!room) { err.textContent = 'Please enter a room code.'; return; }
+  if (rawPassword.length < 6) { err.textContent = 'Please enter the session password (min 6 characters).'; return; }
   if (!lang) { err.textContent = 'Please select your language.'; return; }
   err.textContent = '';
   localStorage.setItem('lt_lang', lang);
+
+  const pwToken = await hashPassword(rawPassword);
+  myFirebasePath = `${room}-${pwToken}`;
 
   try {
     const app = initializeApp({...FB_CONFIG}, 'lt-l-' + Date.now());
@@ -281,10 +297,10 @@ window.joinRoom = async function() {
     joinedAt = Date.now();
 
     // Register — speaker reads all connections and translates into their languages
-    await set(ref(db, `rooms/${room}/connections/${connId}`), { lang, joined: Date.now() });
+    await set(ref(db, `rooms/${myFirebasePath}/connections/${connId}`), { lang, joined: Date.now() });
 
     // Listen for translations
-    onValue(ref(db, `rooms/${room}/latest`), snap => {
+    onValue(ref(db, `rooms/${myFirebasePath}/latest`), snap => {
       if (!snap.exists()) return;
       const data = snap.val();
       // Ignore anything written before we joined
@@ -385,13 +401,13 @@ window.changeLanguage = async function() {
   document.getElementById('hero-text').className = 'hero-text waiting';
   setStatus('ok', `Connected · <strong>${sel}</strong>`);
   if (db && myRoom && connId) {
-    await set(ref(db, `rooms/${myRoom}/connections/${connId}`), { lang: sel, joined: Date.now() });
+    await set(ref(db, `rooms/${myFirebasePath}/connections/${connId}`), { lang: sel, joined: Date.now() });
   }
   renderChips();
 };
 
 function cleanup() {
-  if (db && myRoom && connId) remove(ref(db, `rooms/${myRoom}/connections/${connId}`));
+  if (db && myRoom && connId) remove(ref(db, `rooms/${myFirebasePath}/connections/${connId}`));
 }
 
 window.leaveRoom = function() {
@@ -400,5 +416,9 @@ window.leaveRoom = function() {
   document.getElementById('join-screen').style.display = 'flex';
 };
 </script>
+<footer style="text-align:center;padding:16px 16px 24px;font-size:.65rem;color:#6b7280;line-height:1.7;border-top:1px solid rgba(255,255,255,.07);margin-top:16px">
+  Translations are AI-generated and temporarily stored in Google Firebase. Content is deleted when the session ends.<br>
+  <a href="https://firebase.google.com/terms/data-processing-terms" target="_blank" style="color:#6b7280;text-decoration:underline">Firebase data processing terms</a>
+</footer>
 </body>
 </html>
