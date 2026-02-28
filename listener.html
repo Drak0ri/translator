@@ -143,19 +143,8 @@
       <label>Your Language</label>
       <select id="j-lang">
         <option value="">— Select your language —</option>
-        <option>English</option>
-        <option>Albanian</option><option>Amharic</option><option>Arabic</option>
-        <option>Dari</option><option>Dutch</option><option>Farsi</option>
-        <option>French</option><option>German</option><option>Greek</option>
-        <option>Hindi</option><option>Indonesian</option><option>Italian</option>
-        <option>Japanese</option><option>Korean</option><option>Kurdish</option>
-        <option>Malay</option><option>Norwegian</option><option>Polish</option>
-        <option>Portuguese</option><option>Romanian</option><option>Russian</option>
-        <option>Somali</option><option>Spanish</option><option>Swedish</option>
-        <option>Tigrinya</option><option>Turkish</option><option>Ukrainian</option>
-        <option>Urdu</option><option>Vietnamese</option>
-        <option value="__custom__">Other — type below</option>
       </select>
+      <div id="j-lang-note" style="display:none;font-size:.72rem;color:#6b7280;margin-top:4px;line-height:1.5"></div>
     </div>
     <div class="field" id="custom-wrap" style="display:none">
       <label>Type your language</label>
@@ -201,19 +190,11 @@
       <label>My language:</label>
       <select id="lang-sel" onchange="changeLanguage()">
         <option value="">— Change —</option>
-        <option>English</option>
-        <option>Albanian</option><option>Amharic</option><option>Arabic</option>
-        <option>Dari</option><option>Dutch</option><option>Farsi</option>
-        <option>French</option><option>German</option><option>Greek</option>
-        <option>Hindi</option><option>Indonesian</option><option>Italian</option>
-        <option>Japanese</option><option>Korean</option><option>Kurdish</option>
-        <option>Malay</option><option>Norwegian</option><option>Polish</option>
-        <option>Portuguese</option><option>Romanian</option><option>Russian</option>
-        <option>Somali</option><option>Spanish</option><option>Swedish</option>
-        <option>Tigrinya</option><option>Turkish</option><option>Ukrainian</option>
-        <option>Urdu</option><option>Vietnamese</option>
       </select>
     </div>
+    <div id="chrome-dl-status" style="display:none;font-size:.78rem;color:#6b7280;
+      text-align:center;padding:6px 12px;background:rgba(37,99,235,.06);
+      border-radius:8px;margin:0 16px;line-height:1.5"></div>
 
     <button class="extras-toggle" id="extras-toggle" onclick="toggleExtras()">
       + Also show other languages
@@ -229,7 +210,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getDatabase, ref, onValue, set, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getDatabase, ref, onValue, set, remove, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 const FB_CONFIG = {
   apiKey:      'AIzaSyAxu-jLi24nzfVr93CepVG6EZnY4t7aZ-o',
@@ -244,7 +225,23 @@ const ALL_LANGS = ['English','Albanian','Amharic','Arabic','Dari','Dutch','Farsi
   'Polish','Portuguese','Romanian','Russian','Somali','Spanish','Swedish','Tigrinya',
   'Turkish','Ukrainian','Urdu','Vietnamese'];
 
+// Languages supported by Chrome AI Translator API
+const CHROME_AI_LANGS = ['English','Swedish','Arabic','Chinese','Dutch','French','German',
+  'Greek','Hindi','Indonesian','Italian','Japanese','Korean','Malay','Norwegian',
+  'Persian','Polish','Portuguese','Romanian','Russian','Spanish','Turkish',
+  'Ukrainian','Urdu','Vietnamese'];
+
+const LANG_TO_BCP47 = {
+  'English':'en','Swedish':'sv','Arabic':'ar','Chinese':'zh','Dutch':'nl',
+  'French':'fr','German':'de','Greek':'el','Hindi':'hi','Indonesian':'id',
+  'Italian':'it','Japanese':'ja','Korean':'ko','Malay':'ms','Norwegian':'no',
+  'Persian':'fa','Polish':'pl','Portuguese':'pt','Romanian':'ro','Russian':'ru',
+  'Spanish':'es','Turkish':'tr','Ukrainian':'uk','Urdu':'ur','Vietnamese':'vi'
+};
+
 let db = null, myLang = '', myRoom = '', connId = '', joinedAt = 0, myFirebasePath = '';
+let speakerProvider = null; // read from Firebase once room is joined
+let chromeTranslator = null; // cached Translator instance for current lang pair
 
 async function hashPassword(password) {
   const encoded = new TextEncoder().encode(password.normalize('NFC'));
@@ -256,7 +253,47 @@ let currentTranslation = '', lastTranslations = {};
 let extraLangs = new Set();
 let extrasOpen = false;
 
+// ── Language list helpers ─────────────────────────────
+function getLangList(isChromeAI) {
+  return isChromeAI ? CHROME_AI_LANGS : ALL_LANGS;
+}
+
+function populateLangSelect(selectId, isChromeAI, selectedLang, includeCustom) {
+  const sel = document.getElementById(selectId);
+  const langs = getLangList(isChromeAI);
+  const current = sel.value;
+  sel.innerHTML = selectId === 'j-lang'
+    ? '<option value="">— Select your language —</option>'
+    : '<option value="">— Change —</option>';
+  langs.forEach(l => {
+    const o = document.createElement('option');
+    o.value = o.textContent = l;
+    sel.appendChild(o);
+  });
+  if (includeCustom && !isChromeAI) {
+    const o = document.createElement('option');
+    o.value = '__custom__'; o.textContent = 'Other — type below';
+    sel.appendChild(o);
+  }
+  if (selectedLang) sel.value = selectedLang;
+  else if (current) sel.value = current;
+
+  // Show note if Chrome AI
+  const note = document.getElementById(selectId === 'j-lang' ? 'j-lang-note' : null);
+  if (note) {
+    if (isChromeAI) {
+      note.style.display = 'block';
+      note.textContent = 'Showing languages supported by Chrome AI. Some languages unavailable with this provider.';
+    } else {
+      note.style.display = 'none';
+    }
+  }
+}
+
 window.addEventListener('load', () => {
+  // Populate join select with all langs initially (provider unknown until join)
+  populateLangSelect('j-lang', false, null, true);
+
   // Custom lang toggle
   document.getElementById('j-lang').addEventListener('change', function() {
     document.getElementById('custom-wrap').style.display =
@@ -296,6 +333,18 @@ window.joinRoom = async function() {
     myRoom = room; myLang = lang;
     joinedAt = Date.now();
 
+    // Read speaker provider to filter language lists
+    const activeSnap = await get(ref(db, `rooms/${myFirebasePath}/active`));
+    if (activeSnap.exists()) {
+      const activeVal = activeSnap.val();
+      speakerProvider = typeof activeVal === 'object' ? activeVal.provider : null;
+    }
+    const isChromeAI = speakerProvider === 'chromeai';
+
+    // Filter both language selects to match speaker's provider
+    populateLangSelect('j-lang', isChromeAI, lang, !isChromeAI);
+    populateLangSelect('lang-sel', isChromeAI, lang, false);
+
     // Register — speaker reads all connections and translates into their languages
     await set(ref(db, `rooms/${myFirebasePath}/connections/${connId}`), { lang, joined: Date.now() });
 
@@ -315,11 +364,58 @@ window.joinRoom = async function() {
     document.getElementById('lang-sel').value = lang;
     setStatus('ok', `Connected · <strong>${lang}</strong>`);
 
+    // If Chrome AI, prewarm the translator for this language
+    if (isChromeAI) prewarmListenerTranslator(lang);
+
     window.addEventListener('beforeunload', cleanup);
   } catch(e) {
     err.textContent = 'Connection failed: ' + e.message;
   }
 };
+
+// ── Chrome AI prewarm (listener side) ────────────────
+async function prewarmListenerTranslator(targetLang) {
+  if (!('Translator' in self)) return;
+  const tgtCode = LANG_TO_BCP47[targetLang];
+  if (!tgtCode) return;
+
+  // Source language will be whatever the speaker speaks — we don't know yet,
+  // but 'en' covers most cases and triggers the download. Will be overridden per-phrase.
+  const srcCode = 'en';
+  if (tgtCode === srcCode) return;
+
+  const dlStatus = document.getElementById('chrome-dl-status');
+  try {
+    const avail = await Translator.availability({ sourceLanguage: srcCode, targetLanguage: tgtCode });
+    if (avail === 'unavailable') {
+      dlStatus.style.display = 'block';
+      dlStatus.textContent = `⚠️ ${targetLang} may not be available with Chrome AI on this device.`;
+      return;
+    }
+    if (avail === 'readily') {
+      chromeTranslator = null; // will be created fresh per-phrase with correct src
+      return; // already downloaded, nothing to show
+    }
+    // Needs download
+    dlStatus.style.display = 'block';
+    dlStatus.textContent = `⬇️ Downloading ${targetLang} language model…`;
+    const t = await Translator.create({
+      sourceLanguage: srcCode, targetLanguage: tgtCode,
+      monitor(m) {
+        m.addEventListener('downloadprogress', e => {
+          const pct = e.loaded != null ? Math.round(e.loaded * 100) : '…';
+          dlStatus.textContent = `⬇️ Downloading ${targetLang} model — ${pct}%`;
+        });
+      }
+    });
+    chromeTranslator = t;
+    dlStatus.textContent = `✅ ${targetLang} model ready — translation will begin on the next phrase.`;
+    setTimeout(() => { dlStatus.style.display = 'none'; }, 4000);
+  } catch(e) {
+    dlStatus.style.display = 'block';
+    dlStatus.textContent = `⚠️ Could not download ${targetLang} model: ${e.message}`;
+  }
+}
 
 // ── Handle update ─────────────────────────────────────
 function handleUpdate(data) {
@@ -328,11 +424,24 @@ function handleUpdate(data) {
 
   const t = data.translations[myLang];
   const el = document.getElementById('hero-text');
+  const dlStatus = document.getElementById('chrome-dl-status');
+
   if (t) {
-    currentTranslation = t;
-    el.textContent = t;
-    el.className = 'hero-text incoming';
-    setTimeout(() => el.classList.remove('incoming'), 500);
+    // Check if it's a Chrome AI error message from the speaker
+    if (t.startsWith('(error:') || t.startsWith('(unavailable:')) {
+      el.className = 'hero-text waiting';
+      el.textContent = 'Model downloading — translation will appear on the next phrase.';
+      // Trigger download on listener side too
+      if (speakerProvider === 'chromeai') prewarmListenerTranslator(myLang);
+    } else {
+      currentTranslation = t;
+      el.textContent = t;
+      el.className = 'hero-text incoming';
+      setTimeout(() => el.classList.remove('incoming'), 500);
+      if (dlStatus.style.display !== 'none') {
+        dlStatus.style.display = 'none'; // clear any download notice once translation arrives
+      }
+    }
     setStatus('ok', `Connected · <strong>${myLang}</strong>`);
   } else {
     el.textContent = 'Your language is registered — translation will appear on the next phrase.';
@@ -349,7 +458,8 @@ function handleUpdate(data) {
 function renderChips() {
   const row = document.getElementById('chip-row');
   row.innerHTML = '';
-  ALL_LANGS.filter(l => l !== myLang).forEach(lang => {
+  const langs = getLangList(speakerProvider === 'chromeai').filter(l => l !== myLang);
+  langs.forEach(lang => {
     const c = document.createElement('div');
     c.className = 'echip' + (extraLangs.has(lang) ? ' on' : '');
     c.textContent = lang;
@@ -400,8 +510,22 @@ window.changeLanguage = async function() {
   document.getElementById('hero-text').textContent = 'Waiting for next phrase in ' + sel + '...';
   document.getElementById('hero-text').className = 'hero-text waiting';
   setStatus('ok', `Connected · <strong>${sel}</strong>`);
+
+  // Show immediate feedback while Firebase registers the change
+  const dlStatus = document.getElementById('chrome-dl-status');
+  if (speakerProvider === 'chromeai') {
+    dlStatus.style.display = 'block';
+    dlStatus.textContent = '⏳ Registering ' + sel + ' — speaker will download model if needed…';
+  }
+
   if (db && myRoom && connId) {
     await set(ref(db, `rooms/${myFirebasePath}/connections/${connId}`), { lang: sel, joined: Date.now() });
+  }
+
+  if (speakerProvider === 'chromeai') {
+    prewarmListenerTranslator(sel); // triggers download on listener side too
+  } else {
+    dlStatus.style.display = 'none';
   }
   renderChips();
 };
