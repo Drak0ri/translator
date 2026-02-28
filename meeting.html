@@ -461,7 +461,7 @@
 
   <!-- Translation display -->
   <div id="display-area">
-    <div class="display-empty" id="display-empty">🎤 Hold a button below to speak</div>
+    <div class="display-empty" id="display-empty">🎤 Hold SPACE or click a button to speak</div>
     <div id="display-content" style="display:none">
       <div class="display-source" id="display-source">
         <div class="source-num" id="source-num"></div>
@@ -916,6 +916,36 @@ window.sendMeetingTyped = async function(id) {
   }
 };
 
+// ── Spacebar PTT ────────────────────────────────────────
+(function() {
+  let spaceHeld = false;
+  document.addEventListener('keydown', e => {
+    if (e.code !== 'Space') return;
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (!speakers.length) return;
+    if (spaceHeld) return;
+    e.preventDefault();
+    spaceHeld = true;
+    // Use the first speaker whose mic is ready
+    const sp = speakers.find(s => {
+      const lbl = document.getElementById('ptt-label-' + s.id);
+      return lbl && lbl.textContent !== 'Warming up mic...';
+    }) || speakers[0];
+    startPTT(sp.id);
+  });
+  document.addEventListener('keyup', e => {
+    if (e.code !== 'Space' || !spaceHeld) return;
+    e.preventDefault();
+    spaceHeld = false;
+    const sp = speakers.find(s => {
+      const btn = document.getElementById('ptt-' + s.id);
+      return btn && btn.classList.contains('recording');
+    });
+    if (sp) stopPTT(sp.id);
+  });
+})();
+
 // ── PTT ───────────────────────────────────────────────
 window.startPTT = function(id) {
   const sp = speakers.find(s => s.id === id);
@@ -967,7 +997,7 @@ window.stopPTT = function(id) {
   if (document.getElementById('status-' + id)?.textContent === 'Listening...') {
     setSpStatus(id, 'idle', 'Ready');
     setPTTState(id, 'idle');
-    document.getElementById('ptt-label-' + id).textContent = 'Hold to speak';
+    document.getElementById('ptt-label-' + id).textContent = 'SPACE or click to speak';
   }
 };
 
@@ -1026,13 +1056,13 @@ async function translateAndPush(sp, text) {
     addHistory(sp, text, idx, translations);
     setSpStatus(sp.id, 'done', '✓ Done');
     setPTTState(sp.id, 'idle');
-    document.getElementById('ptt-label-' + sp.id).textContent = 'Hold to speak';
+    document.getElementById('ptt-label-' + sp.id).textContent = 'SPACE or click to speak';
     setTimeout(() => setSpStatus(sp.id, 'idle', 'Ready'), 2000);
 
   } catch(e) {
     setSpStatus(sp.id, 'idle', 'Error: ' + e.message.slice(0, 40));
     setPTTState(sp.id, 'idle');
-    document.getElementById('ptt-label-' + sp.id).textContent = 'Hold to speak';
+    document.getElementById('ptt-label-' + sp.id).textContent = 'SPACE or click to speak';
     allLangs.forEach(lang => {
       const el = document.getElementById('tc-' + slugify(lang));
       if (el) { el.textContent = 'Error'; el.className = 'tcard-text loading'; }
@@ -1139,7 +1169,7 @@ async function prewarmTranslationProvider() {
       speakers.forEach(s => {
         const lbl = document.getElementById('ptt-label-' + s.id);
         const btn = document.getElementById('ptt-' + s.id);
-        if (lbl) lbl.textContent = 'Hold to speak';
+        if (lbl) lbl.textContent = 'SPACE or click to speak';
         if (btn) btn.style.borderColor = '';
       });
     }, 3000);
@@ -1154,7 +1184,7 @@ async function prewarmTranslationProvider() {
     speakers.forEach(s => {
       const lbl = document.getElementById('ptt-label-' + s.id);
       const btn = document.getElementById('ptt-' + s.id);
-      if (lbl) lbl.textContent = 'Hold to speak';
+      if (lbl) lbl.textContent = 'SPACE or click to speak';
       if (btn) btn.style.borderColor = 'var(--danger, #e05)';
       setTimeout(() => { if (btn) btn.style.borderColor = ''; }, 4000);
     });
@@ -1170,7 +1200,7 @@ function markAllReady() {
   speakers.forEach(sp => {
     const lbl = document.getElementById('ptt-label-' + sp.id);
     const btn = document.getElementById('ptt-' + sp.id);
-    if (lbl) lbl.textContent = 'Hold to speak';
+    if (lbl) lbl.textContent = 'SPACE or click to speak';
     if (btn) { btn.style.borderColor = 'var(--success)'; setTimeout(() => { btn.style.borderColor = ''; }, 1500); }
   });
 }
