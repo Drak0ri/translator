@@ -131,7 +131,7 @@
   #display-area.projector-mode{min-height:60vh;display:flex;flex-direction:column;justify-content:center}
   .display-empty{color:var(--muted);font-style:italic;font-size:1rem;text-align:center;
     padding:40px 0;display:flex;align-items:center;justify-content:center;gap:10px}
-  .display-source{display:inline-flex;align-items:center;gap:7px;margin-bottom:12px}
+  .display-source{display:flex;align-items:center;gap:7px;margin-bottom:12px;width:100%}
   .source-num{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;
     justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:.72rem;color:white}
   .source-name{font-size:.78rem;color:var(--muted2)}
@@ -357,11 +357,11 @@
     <div class="card-title">Connection &amp; Provider</div>
 
     <div class="provider-tabs">
-      <div class="ptab active" onclick="setProvider('anthropic')">Claude <span class="pill">paid</span></div>
+      <div class="ptab active" onclick="setProvider('chromeai')">Chrome AI <span class="pill free">free · built-in</span><br><span style="font-size:.68rem;color:var(--muted);font-weight:400">Chromebook Plus</span></div>
+      <div class="ptab" onclick="setProvider('anthropic')">Claude <span class="pill">paid</span></div>
       <div class="ptab" onclick="setProvider('openai')">GPT-4o <span class="pill">paid</span></div>
       <div class="ptab" onclick="setProvider('gemini')">Gemini <span class="pill">paid</span></div>
       <div class="ptab" onclick="setProvider('ollama')">Ollama <span class="pill free">free</span></div>
-      <div class="ptab" onclick="setProvider('chromeai')">Chrome AI <span class="pill free">free · built-in</span></div>
     </div>
 
     <div class="provider-field active" id="pf-anthropic">
@@ -432,6 +432,7 @@
       <div class="display-source" id="display-source">
         <div class="source-num" id="source-num"></div>
         <div class="source-name" id="source-name"></div>
+        <div id="model-chip" style="margin-left:auto;font-size:.68rem;color:var(--muted);opacity:0.55;font-family:'DM Mono',monospace;align-self:center;white-space:nowrap"></div>
       </div>
       <div class="display-original" id="display-original"></div>
       <div class="trans-grid-meet" id="trans-grid"></div>
@@ -518,7 +519,7 @@ let listenerLangs = new Set();
 let historyItems = [];
 let sessionStartTime = null;
 let projectorActive = true;
-let currentProvider = 'anthropic';
+let currentProvider = 'chromeai';
 let speakerCount = 0;
 
 // ── Init ───────────────────────────────────────────────
@@ -533,8 +534,8 @@ window.addEventListener('load', () => {
   const savedRoom = localStorage.getItem('lt_room') || '';
   const cleanRoom = (savedRoom && !savedRoom.includes('@') && !savedRoom.includes('.')) ? savedRoom : 'A11';
   document.getElementById('room-code').value = cleanRoom;
-  const savedProvider = localStorage.getItem('lt_provider');
-  if (savedProvider) setProvider(savedProvider);
+  const savedProvider = localStorage.getItem('lt_provider') || 'chromeai';
+  setProvider(savedProvider);
 
   // Default 2 speakers
   addSpeaker('', 'en-GB');
@@ -556,8 +557,10 @@ window.toggleStartBtn = function() {
 window.setProvider = function(p) {
   currentProvider = p;
   if (p === 'chromeai') checkChromeAIAvailability();
-  document.querySelectorAll('.ptab').forEach((t, i) => {
-    t.classList.toggle('active', ['anthropic','openai','gemini','ollama'][i] === p);
+  document.querySelectorAll('.ptab').forEach(t => {
+    // Match by the onclick attribute value
+    const match = t.getAttribute('onclick')?.match(/setProvider\('(\w+)'\)/);
+    if (match) t.classList.toggle('active', match[1] === p);
   });
   document.querySelectorAll('.provider-field').forEach(f => f.classList.remove('active'));
   document.getElementById('pf-' + p).classList.add('active');
@@ -828,7 +831,7 @@ async function translateAndPush(sp, text) {
   document.getElementById('source-num').textContent = idx + 1;
   document.getElementById('source-num').style.background = SPEAKER_HEX[idx];
   document.getElementById('source-name').textContent = sp.name + ' · ' + sp.langLabel;
-  document.getElementById('display-original').textContent = text;
+  document.getElementById('model-chip').textContent = providerLabel();
   document.getElementById('display-original').className = 'display-original' + (projectorActive ? ' projector' : '');
 
   // Set loading state on cards
@@ -928,6 +931,7 @@ async function prewarmTranslationProvider() {
   document.getElementById('source-num').textContent = idx + 1;
   document.getElementById('source-num').style.background = SPEAKER_HEX[idx];
   document.getElementById('source-name').textContent = sp.name + ' · ' + sp.langLabel;
+  document.getElementById('model-chip').textContent = providerLabel();
   document.getElementById('display-original').textContent = 'Checking translator…';
   document.getElementById('display-original').className = 'display-original';
   allLangs.forEach(lang => {
@@ -1076,6 +1080,17 @@ function slugify(s) { return s.replace(/[\s()]/g, '-'); }
 function setSetupStatus(msg, type) {
   document.getElementById('setup-status').innerHTML = `<span class="spill ${type}">${msg}</span>`;
 }
+function providerLabel() {
+  const labels = {
+    anthropic: 'Claude 3.5 Haiku',
+    openai:    'GPT-4o mini',
+    gemini:    'Gemini 2.0 Flash',
+    ollama:    'Ollama · ' + (document.getElementById('ollama-model')?.value || 'local'),
+    chromeai:  'Chrome AI · on-device'
+  };
+  return labels[currentProvider] || currentProvider;
+}
+
 function getKey() {
   if (currentProvider === 'ollama') return document.getElementById('key-ollama').value.trim() || 'http://localhost:11434';
   if (currentProvider === 'chromeai') return '';
