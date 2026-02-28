@@ -281,13 +281,13 @@
     <div class="field-single">
       <label>Room Code <span style="color:var(--muted);font-weight:400;font-size:.75rem">— share this with listeners before the meeting</span></label>
       <input type="text" id="room-code" placeholder="e.g. A11" maxlength="20"
-        oninput="this.value=this.value.toUpperCase()" />
+        autocomplete="off" oninput="this.value=this.value.toUpperCase()" />
     </div>
 
     <div class="field-single">
       <label>Session Password <span style="color:var(--muted);font-weight:400;font-size:.75rem">— share with listeners · min 6 characters</span></label>
       <input type="password" id="session-password" placeholder="e.g. staff2025 or møde123" maxlength="40"
-        oninput="checkPasswordStrength(this.value)" autocomplete="off" />
+        oninput="checkPasswordStrength(this.value)" autocomplete="new-password" />
       <div id="pw-hint" style="font-size:.72rem;color:var(--muted);margin-top:4px">
         Listeners must enter this exact password to join. Letters (including åäö), numbers accepted.
       </div>
@@ -636,7 +636,6 @@ async function translateAndPush(text) {
     setMicLabel('Translated — ready for next phrase', 'active');
   } catch(e) {
     setMicLabel('Error: ' + e.message, 'err');
-  }
   }
   setTimeout(() => {
     document.getElementById('mic-btn').className = isListening ? 'mic-btn listening' : 'mic-btn';
