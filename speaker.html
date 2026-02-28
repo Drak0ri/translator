@@ -410,9 +410,16 @@ window.connectRoom = async function() {
       const n = Object.keys(conns).length;
       document.getElementById('conn-count').textContent = `${n} listener${n===1?'':'s'} connected`;
       // Collect all listener languages
-      listenerLangs = new Set(Object.values(conns).map(c => c.lang).filter(Boolean));
+      const newLangs = new Set(Object.values(conns).map(c => c.lang).filter(Boolean));
+      // Chrome AI: prewarm any language that just appeared (listener joined mid-meeting)
+      if (currentProvider === 'chromeai' && connected) {
+        const srcCode = document.getElementById('input-lang').value.split('-')[0];
+        const newOnly = [...newLangs].filter(l => !listenerLangs.has(l));
+        if (newOnly.length) prewarmChromeTranslators(srcCode, newOnly);
+      }
+      listenerLangs = newLangs;
     });
-    await set(ref(db, `rooms/${firebasePath}/active`), true);
+    await set(ref(db, `rooms/${firebasePath}/active`), { active: true, provider: currentProvider });
     await set(ref(db, `rooms/${firebasePath}/latest`), {text:'',translations:{},ts:Date.now(),langs:[]});
     connected = true;
     document.getElementById('room-display').textContent = roomCode;
