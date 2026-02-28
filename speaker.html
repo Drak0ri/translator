@@ -88,6 +88,7 @@
   .transcript-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;
     padding:14px 16px;font-size:.92rem;line-height:1.7;min-height:56px;color:var(--text);width:100%}
   .transcript-box.empty{color:var(--muted);font-style:italic}
+  .transcript-interim{color:var(--muted2);font-style:italic}
 
   /* ── Mode nav ── */
   .mode-nav{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;
@@ -598,7 +599,42 @@ function warmUpSpeakerMic() {
   } catch(e) { clearTimeout(fallback); markSpeakerReady(); }
 }
 
-// ── PTT for speaker page ────────────────────────────────
+// ── Shared chunk/interim state ─────────────────────────
+let pttFinalText = '';
+let chunkBuffer = '';
+let chunkTimer = null;
+const CHUNK_MS = 12000;
+
+function showTranscript(confirmed, interim) {
+  const box = document.getElementById('transcript');
+  box.classList.remove('empty');
+  if (interim) {
+    box.innerHTML = (confirmed ? escHtml(confirmed) + ' ' : '') +
+      `<span class="transcript-interim">${escHtml(interim)}</span>`;
+  } else {
+    box.textContent = confirmed || '';
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function scheduleChunk(getText) {
+  clearTimeout(chunkTimer);
+  chunkTimer = setTimeout(async () => {
+    const text = getText().trim();
+    if (text.length > 3) await translateAndPush(text);
+    scheduleChunk(getText);
+  }, CHUNK_MS);
+}
+
+function cancelChunk() {
+  clearTimeout(chunkTimer);
+  chunkTimer = null;
+}
+
+// ── PTT for speaker page ─────────────────────────────────
 window.startPTT = function() {
   if (!connected) return;
   if (pttActive) return;
@@ -611,80 +647,109 @@ window.startPTT = function() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { setMicLabel('Use Chrome for speech recognition', 'err'); return; }
   pttActive = true;
+  chunkBuffer = '';
   const lang = document.getElementById('input-lang').value;
   const btn = document.getElementById('ptt-big');
   btn.className = 'ptt-big recording';
   document.getElementById('ptt-sublabel').textContent = 'Listening...';
   pttRecognition = new SR();
   pttRecognition.lang = lang;
-  pttRecognition.continuous = false;
+  pttRecognition.continuous = true;
   pttRecognition.interimResults = true;
+  let currentInterim = '';
   pttRecognition.onresult = e => {
-    let interim = '', final = '';
+    let newFinal = '';
+    currentInterim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) final += e.results[i][0].transcript;
-      else interim += e.results[i][0].transcript;
+      if (e.results[i].isFinal) newFinal += e.results[i][0].transcript;
+      else currentInterim += e.results[i][0].transcript;
     }
-    const box = document.getElementById('transcript');
-    box.classList.remove('empty');
-    box.textContent = final || interim;
-    if (final.trim().length > 0) pttFinalText = final.trim();
+    if (newFinal) chunkBuffer += (chunkBuffer ? ' ' : '') + newFinal.trim();
+    showTranscript(chunkBuffer, currentInterim);
   };
-  pttRecognition.onerror = () => { pttActive = false; btn.className = 'ptt-big'; document.getElementById('ptt-sublabel').textContent = 'Hold SPACE or click · release to translate'; };
-  pttRecognition.onend = () => {
-    if (pttFinalText) {
+  pttRecognition.onerror = () => {
+    cancelChunk();
+    pttActive = false;
+    btn.className = 'ptt-big';
+    document.getElementById('ptt-sublabel').textContent = 'Hold SPACE or click · release to translate';
+  };
+  pttRecognition.onend = async () => {
+    cancelChunk();
+    const full = chunkBuffer.trim();
+    chunkBuffer = '';
+    if (full) {
       btn.className = 'ptt-big processing';
       document.getElementById('ptt-sublabel').textContent = 'Translating...';
-      translateAndPush(pttFinalText).then(() => {
-        btn.className = 'ptt-big';
-        document.getElementById('ptt-sublabel').textContent = 'Hold SPACE or click · release to translate';
-      });
-      pttFinalText = '';
-    } else {
-      btn.className = 'ptt-big';
-      document.getElementById('ptt-sublabel').textContent = 'Hold SPACE or click · release to translate';
+      await translateAndPush(full);
     }
+    btn.className = 'ptt-big';
+    document.getElementById('ptt-sublabel').textContent = 'Hold SPACE or click · release to translate';
     pttActive = false;
   };
   pttFinalText = '';
+  scheduleChunk(() => {
+    const text = chunkBuffer.trim();
+    chunkBuffer = '';
+    return text;
+  });
   pttRecognition.start();
 };
 
 window.stopPTT = function() {
   if (!pttActive) return;
+  cancelChunk();
   try { pttRecognition.stop(); } catch(e) {}
 };
 
-let pttFinalText = '';
-
-// ── Mic ────────────────────────────────────────────────
+// ── Mic ──────────────────────────────────────────────────
 window.toggleMic = function() {
   if (!connected) { alert('Connect to a room first.'); return; }
-  // Languages come from listeners automatically — manual selection is optional extra
   isListening ? stopMic() : startMic();
 };
 function startMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { setMicLabel('Use Chrome for speech recognition', 'err'); return; }
   const lang = document.getElementById('input-lang').value;
-  recognition = new SR(); recognition.continuous = true; recognition.interimResults = true; recognition.lang = lang;
+  chunkBuffer = '';
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = lang;
   recognition.onstart = () => {
     isListening = true;
     document.getElementById('mic-btn').className = 'mic-btn listening';
     document.getElementById('mic-btn').textContent = '⏹';
     setMicLabel('Listening... speak now', 'active');
+    scheduleChunk(() => {
+      const text = chunkBuffer.trim();
+      chunkBuffer = '';
+      return text;
+    });
   };
-  let debounce = null;
+  let pauseDebounce = null;
   recognition.onresult = e => {
-    let interim = '', final = '';
+    let newFinal = '', currentInterim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) final += e.results[i][0].transcript;
-      else interim += e.results[i][0].transcript;
+      if (e.results[i].isFinal) newFinal += e.results[i][0].transcript;
+      else currentInterim += e.results[i][0].transcript;
     }
-    const box = document.getElementById('transcript');
-    box.classList.remove('empty'); box.textContent = final || interim;
-    if (final.trim().length > 3) {
-      clearTimeout(debounce); debounce = setTimeout(() => translateAndPush(final.trim()), 400);
+    if (newFinal) chunkBuffer += (chunkBuffer ? ' ' : '') + newFinal.trim();
+    showTranscript(chunkBuffer, currentInterim);
+    if (newFinal.trim().length > 3) {
+      clearTimeout(pauseDebounce);
+      pauseDebounce = setTimeout(async () => {
+        const text = chunkBuffer.trim();
+        if (text.length > 3) {
+          chunkBuffer = '';
+          cancelChunk();
+          await translateAndPush(text);
+          scheduleChunk(() => {
+            const t = chunkBuffer.trim();
+            chunkBuffer = '';
+            return t;
+          });
+        }
+      }, 400);
     }
   };
   recognition.onerror = e => { setMicLabel('Error: ' + e.error, 'err'); stopMic(); };
@@ -692,7 +757,10 @@ function startMic() {
   recognition.start();
 }
 function stopMic() {
-  isListening = false; if (recognition) recognition.stop();
+  isListening = false;
+  cancelChunk();
+  chunkBuffer = '';
+  if (recognition) recognition.stop();
   document.getElementById('mic-btn').className = 'mic-btn';
   document.getElementById('mic-btn').textContent = '🎤';
   setMicLabel('Press mic to start speaking');
