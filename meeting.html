@@ -1100,6 +1100,7 @@ window.endMeeting = function() {
 // ── API calls ──────────────────────────────────────────
 // ── Chrome Built-in Translator API ─────────────────────
 const chromeTranslatorCache = {};
+const chromeErrorReason = {}; // key -> human-readable failure reason
 const chromeDownloadState = {};
 
 const LANG_TO_BCP47 = {
@@ -1139,6 +1140,15 @@ async function prewarmChromeTranslators() {
         updateChromeDownloadBar(key, 1);
       } catch(e) {
         chromeDownloadState[key] = 'error';
+        // Detect the opaque "Other generic failures" Chrome throws for unsupported pairs
+        const isUnsupported = e.message && (
+          e.message.includes('generic failures') ||
+          e.message.includes('NotSupportedError') ||
+          e.name === 'NotSupportedError'
+        );
+        chromeErrorReason[key] = isUnsupported
+          ? `not supported by Chrome AI (${srcCode}→${tgtCode})`
+          : e.message;
         console.warn('Chrome AI prewarm failed:', key, e.message);
       }
     }
@@ -1181,8 +1191,14 @@ function maybeHideChromeDownloadBar() {
   if (!allDone) return;
   const bar = document.getElementById('chrome-dl-bar');
   if (!bar) return;
-  bar.innerHTML = `<div>✅ Chrome AI models ready</div>`;
-  setTimeout(() => bar.remove(), 2000);
+  const errors = Object.entries(chromeDownloadState).filter(([,s]) => s === 'error');
+  if (errors.length > 0) {
+    const langs = errors.map(([k]) => k.split('->')[1].toUpperCase()).join(', ');
+    bar.innerHTML = `<div>⚠️ Chrome AI: ${langs} not supported — other languages OK</div>`;
+  } else {
+    bar.innerHTML = `<div>✅ Chrome AI models ready</div>`;
+  }
+  setTimeout(() => bar.remove(), 3500);
 }
 
 async function callChromeAI(text, targetLangs, srcCode) {
@@ -1197,6 +1213,10 @@ async function callChromeAI(text, targetLangs, srcCode) {
       if (!chromeTranslatorCache[key]) {
         if (chromeDownloadState[key] === 'downloading') {
           results[displayLang] = '(model still downloading — try again shortly)';
+          return;
+        }
+        if (chromeDownloadState[key] === 'error') {
+          results[displayLang] = `(unavailable: ${chromeErrorReason[key] || 'Chrome AI could not load this language pair'})`;
           return;
         }
         throw new Error(`Model not ready for ${displayLang}. Restart meeting to trigger download.`);
