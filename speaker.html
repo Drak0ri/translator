@@ -89,35 +89,6 @@
     padding:14px 16px;font-size:.92rem;line-height:1.7;min-height:56px;color:var(--text);width:100%}
   .transcript-box.empty{color:var(--muted);font-style:italic}
 
-  /* Chips */
-  .chip-grid{display:flex;flex-wrap:wrap;gap:7px}
-  .chip{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 13px;
-    font-size:.82rem;cursor:pointer;transition:all .15s;user-select:none}
-  .chip:hover{border-color:var(--accent)}
-  .chip.on{background:rgba(37,99,235,.12);border-color:var(--accent);color:#93c5fd}
-  .add-lang-row{display:flex;gap:8px;margin-top:10px}
-  .add-lang-row input{flex:1}
-
-  /* Trans preview */
-  .trans-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
-  .trans-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;
-    position:relative;overflow:hidden}
-  .trans-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;
-    background:linear-gradient(90deg,var(--accent),var(--accent2));transform:scaleX(0);
-    transition:transform .4s;transform-origin:left}
-  .trans-card.flash::after{transform:scaleX(1)}
-  .tl{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--accent2);margin-bottom:6px;text-transform:uppercase}
-  .tt{font-size:.88rem;line-height:1.6;color:var(--text);min-height:36px}
-  .tt.loading{color:var(--muted);font-style:italic}
-
-  /* History */
-  .history{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
-  .hi{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 13px}
-  .hi-meta{font-size:.72rem;color:var(--muted);margin-bottom:3px}
-  .hi-text{font-size:.85rem}
-  .empty-note{color:var(--muted);font-size:.82rem;font-style:italic;text-align:center;padding:16px}
-  ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:translistener}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-
   /* ── Mode nav ── */
   .mode-nav{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;
     border-bottom:1px solid var(--border);background:rgba(5,8,15,.6);backdrop-filter:blur(8px);
@@ -308,44 +279,21 @@
         oninput="this.value=this.value.toUpperCase()" />
     </div>
 
+    <div class="field-single">
+      <label>Session Password <span style="color:var(--muted);font-weight:400;font-size:.75rem">— share with listeners · min 6 characters</span></label>
+      <input type="password" id="session-password" placeholder="e.g. staff2025 or møde123" maxlength="40"
+        oninput="checkPasswordStrength(this.value)" autocomplete="off" />
+      <div id="pw-hint" style="font-size:.72rem;color:var(--muted);margin-top:4px">
+        Listeners must enter this exact password to join. Letters (including åäö), numbers accepted.
+      </div>
+    </div>
+
     <div class="btn-row">
       <button class="btn" onclick="connectRoom()">Connect to Room</button>
       <span id="setup-status"></span>
     </div>
   </div>
 
-  <!-- LANGUAGES -->
-  <div class="card">
-    <div class="card-title">Target Languages</div>
-    <div id="listener-langs" style="display:none;font-size:.78rem;color:var(--success);
-      background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;
-      padding:8px 12px;margin-bottom:12px;line-height:1.5"></div>
-    <div style="font-size:.78rem;color:var(--muted2);margin-bottom:10px">
-      Optional extras — add languages beyond what listeners have requested:
-    </div>
-    <div class="chip-grid" id="chip-grid"></div>
-    <div class="add-lang-row">
-      <input type="text" id="custom-lang" placeholder="Add language (e.g. Tigrinya, Pashto...)" />
-      <button class="btn" style="padding:10px 16px;font-size:.8rem" onclick="addLang()">+ Add</button>
-    </div>
-  </div>
-
-  <!-- PREVIEW -->\n  <div class="card" id="trans-section" style="display:none">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="card-title" style="margin:0">Live Translation Preview</div>
-      <div id="model-chip" style="font-size:.68rem;color:var(--muted);opacity:0.55;font-family:'DM Mono',monospace"></div>
-    </div>
-    <div class="trans-grid" id="trans-grid"></div>
-  </div>
-
-  <!-- HISTORY -->
-  <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div class="card-title" style="margin:0">Session History</div>
-      <button class="btn-ghost" onclick="clearHistory()">Clear</button>
-    </div>
-    <div class="history" id="history"><div class="empty-note">No translations yet</div></div>
-  </div>
 </div>
 
 <script type="module">
@@ -360,15 +308,39 @@ const FB_CONFIG = {
   appId:       '1:877155393473:web:13622664b9563976ac9940'
 };
 
-let db = null, connected = false, roomCode = '';
+let db = null, connected = false, roomCode = '', firebasePath = '';
+
+// Wipe Firebase room data when speaker leaves
+window.addEventListener('pagehide', () => {
+  if (db && firebasePath) {
+    try { set(ref(db, `rooms/${firebasePath}`), null); } catch(e) {}
+  }
+});
+
+
+async function hashPassword(password) {
+  const encoded = new TextEncoder().encode(password.normalize('NFC'));
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.slice(0, 4).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function checkPasswordStrength(val) {
+  const hint = document.getElementById('pw-hint');
+  if (!hint) return;
+  if (val.length === 0) {
+    hint.style.color = 'var(--muted)';
+    hint.textContent = 'Listeners must enter this exact password to join. Letters (including åäö), numbers accepted.';
+  } else if (val.length < 6) {
+    hint.style.color = 'var(--warn, #f59e0b)';
+    hint.textContent = `${6 - val.length} more character${6 - val.length === 1 ? '' : 's'} needed`;
+  } else {
+    hint.style.color = 'var(--success, #10b981)';
+    hint.textContent = '✓ Password set';
+  }
+}
 let listenerLangs = new Set();
 let isListening = false, recognition = null, inputMode = 'toggle', pttRecognition = null, pttActive = false;
-let selectedLangs = new Set();
-let historyItems = [];
 let currentProvider = 'chromeai';
-
-const PRESETS = ['Arabic','Somali','Dari','Tigrinya','Kurdish','Turkish','Polish',
-  'Spanish','French','German','Urdu','Hindi','Amharic','Farsi','Romanian','Albanian'];
 
 // ── Provider switcher ──────────────────────────────────
 window.setProvider = function(p) {
@@ -381,10 +353,6 @@ window.setProvider = function(p) {
   document.querySelectorAll('.provider-field').forEach(f => f.classList.remove('active'));
   document.getElementById('pf-' + p).classList.add('active');
   localStorage.setItem('iesv_provider', p);
-  if (p === 'chromeai') {
-    selectedLangs.forEach(l => { if (!LANG_TO_BCP47[l]) selectedLangs.delete(l); });
-  }
-  if (document.getElementById('chip-grid')) renderChips();
 };
 
 // ── Init ───────────────────────────────────────────────
@@ -400,15 +368,19 @@ window.addEventListener('load', () => {
   document.getElementById('room-code').value = cleanRoom;
   const savedProvider = localStorage.getItem('iesv_provider') || 'chromeai';
   window.setProvider(savedProvider);
-  renderChips();
 });
 
 // ── Connect ────────────────────────────────────────────
 window.connectRoom = async function() {
   roomCode = document.getElementById('room-code').value.trim().toUpperCase();
   if (!roomCode) { setStatus('Enter a room code', 'err'); return; }
+  const rawPassword = document.getElementById('session-password').value;
+  if (rawPassword.length < 6) { setStatus('Session password must be at least 6 characters', 'err'); return; }
   const key = getKey();
   if (!key && currentProvider !== 'ollama' && currentProvider !== 'chromeai') { setStatus('Enter an API key', 'err'); return; }
+
+  const pwToken = await hashPassword(rawPassword);
+  firebasePath = `${roomCode}-${pwToken}`;
 
   // Save keys
   localStorage.setItem('iesv_room-code', roomCode);
@@ -423,7 +395,7 @@ window.connectRoom = async function() {
   try {
     const app = initializeApp({...FB_CONFIG}, 'iesv-t-' + Date.now());
     db = getDatabase(app);
-    onValue(ref(db, `rooms/${roomCode}/connections`), snap => {
+    onValue(ref(db, `rooms/${firebasePath}/connections`), snap => {
       if (!snap.exists()) {
         listenerLangs = new Set();
         document.getElementById('conn-count').textContent = '0 listeners connected';
@@ -434,17 +406,9 @@ window.connectRoom = async function() {
       document.getElementById('conn-count').textContent = `${n} listener${n===1?'':'s'} connected`;
       // Collect all listener languages
       listenerLangs = new Set(Object.values(conns).map(c => c.lang).filter(Boolean));
-      // Show in the listener langs display
-      const ll = document.getElementById('listener-langs');
-      if (listenerLangs.size > 0) {
-        ll.textContent = 'Auto-translating into: ' + [...listenerLangs].join(', ');
-        ll.style.display = 'block';
-      } else {
-        ll.style.display = 'none';
-      }
     });
-    await set(ref(db, `rooms/${roomCode}/active`), true);
-    await set(ref(db, `rooms/${roomCode}/latest`), {text:'',translations:{},ts:Date.now(),langs:[]});
+    await set(ref(db, `rooms/${firebasePath}/active`), true);
+    await set(ref(db, `rooms/${firebasePath}/latest`), {text:'',translations:{},ts:Date.now(),langs:[]});
     connected = true;
     document.getElementById('room-display').textContent = roomCode;
     setStatus(`✓ Room ${roomCode} · ${providerLabel()}`, 'ok');
@@ -454,7 +418,7 @@ window.connectRoom = async function() {
     // Pre-warm Chrome AI translators (must happen inside user gesture = button click)
     if (currentProvider === 'chromeai') {
       const srcCode = document.getElementById('input-lang').value.split('-')[0];
-      prewarmChromeTranslators(srcCode, [...selectedLangs]);
+      prewarmChromeTranslators(srcCode, [...listenerLangs]);
     }
   } catch(e) { setStatus('Firebase error: ' + e.message, 'err'); }
 };
@@ -481,61 +445,7 @@ function setStatus(msg, type) {
   document.getElementById('setup-status').innerHTML = `<span class="spill ${type}">${msg}</span>`;
 }
 
-// ── Language chips ─────────────────────────────────────
-function renderChips() {
-  const g = document.getElementById('chip-grid'); g.innerHTML = '';
-  const isChromeAI = currentProvider === 'chromeai';
-  const visibleLangs = isChromeAI
-    ? PRESETS.filter(l => LANG_TO_BCP47[l])
-    : PRESETS;
-
-  visibleLangs.forEach(lang => {
-    const c = document.createElement('div');
-    c.className = 'chip' + (selectedLangs.has(lang) ? ' on' : '');
-    c.textContent = lang; c.onclick = () => toggleLang(lang); g.appendChild(c);
-  });
-
-  const noteId = 'chrome-lang-note';
-  let note = document.getElementById(noteId);
-  if (isChromeAI) {
-    if (!note) {
-      note = document.createElement('div');
-      note.id = noteId;
-      note.style.cssText = 'font-size:.72rem;color:var(--muted);margin-top:8px';
-      note.textContent = 'Showing languages supported by Chrome AI. Switch provider to see all languages.';
-      g.parentElement.insertBefore(note, g.nextSibling);
-    }
-  } else {
-    if (note) note.remove();
-  }
-
-  const addRow = document.querySelector('.add-lang-row');
-  if (addRow) addRow.style.display = isChromeAI ? 'none' : '';
-}
-function toggleLang(lang) {
-  selectedLangs.has(lang) ? selectedLangs.delete(lang) : selectedLangs.add(lang);
-  renderChips(); renderTransCards();
-}
-window.addLang = function() {
-  const input = document.getElementById('custom-lang');
-  const lang = input.value.trim(); if (!lang) return;
-  if (!PRESETS.includes(lang)) PRESETS.push(lang);
-  selectedLangs.add(lang); input.value = ''; renderChips(); renderTransCards();
-};
 function slugify(s) { return s.replace(/[\s()]/g,'-'); }
-function renderTransCards() {
-  const sec = document.getElementById('trans-section'), grid = document.getElementById('trans-grid');
-  if (selectedLangs.size === 0) { sec.style.display = 'none'; return; }
-  sec.style.display = 'block';
-  [...grid.children].forEach(c => { if (!selectedLangs.has(c.dataset.lang)) c.remove(); });
-  selectedLangs.forEach(lang => {
-    if (!grid.querySelector(`[data-lang="${lang}"]`)) {
-      const card = document.createElement('div'); card.className = 'trans-card'; card.dataset.lang = lang;
-      card.innerHTML = `<div class="tl">${lang}</div><div class="tt" id="tt-${slugify(lang)}">—</div>`;
-      grid.appendChild(card);
-    }
-  });
-}
 
 // ── Input mode ─────────────────────────────────────────
 window.setInputMode = function(mode) {
@@ -691,9 +601,8 @@ function setMicLabel(msg, type = '') {
 // ── Translation ────────────────────────────────────────
 async function translateAndPush(text) {
   if (!text) return;
-  // Merge listener-registered languages with any manually added extras
-  const allLangs = new Set([...listenerLangs, ...selectedLangs]);
-  if (allLangs.size === 0) { setMicLabel('No listeners connected and no languages selected', 'err'); return; }
+  const allLangs = new Set([...listenerLangs]);
+  if (allLangs.size === 0) { setMicLabel('No listeners connected to this room', 'err'); return; }
   const langList = [...allLangs].join(', ');
   const langNames = {
     'en-GB':'English','en-US':'English','sv-SE':'Swedish','ar-SA':'Arabic',
@@ -709,12 +618,6 @@ async function translateAndPush(text) {
 
   document.getElementById('mic-btn').className = 'mic-btn processing';
   setMicLabel('Translating...', 'active');
-  const modelChip = document.getElementById('model-chip');
-  if (modelChip) modelChip.textContent = providerLabel();
-  selectedLangs.forEach(lang => {
-    const el = document.getElementById('tt-' + slugify(lang));
-    if (el) { el.textContent = 'Translating...'; el.className = 'tt loading'; }
-  });
 
   try {
     let translations;
@@ -724,23 +627,11 @@ async function translateAndPush(text) {
     else if (currentProvider === 'ollama')    translations = await callOllama(prompt);
     else if (currentProvider === 'chromeai')  translations = await callChromeAI(text, [...allLangs]);
 
-    selectedLangs.forEach(lang => {
-      const el = document.getElementById('tt-' + slugify(lang));
-      const card = el?.closest('.trans-card');
-      if (el && translations[lang]) {
-        el.textContent = translations[lang]; el.className = 'tt';
-        card?.classList.add('flash'); setTimeout(() => card?.classList.remove('flash'), 1500);
-      }
-    });
-    if (db) await set(ref(db, `rooms/${roomCode}/latest`), {text, translations, ts: Date.now(), langs: [...allLangs]});
-    addHistory(text);
+    if (db) await set(ref(db, `rooms/${firebasePath}/latest`), {text, translations, ts: Date.now(), langs: [...allLangs]});
     setMicLabel('Translated — ready for next phrase', 'active');
   } catch(e) {
     setMicLabel('Error: ' + e.message, 'err');
-    selectedLangs.forEach(lang => {
-      const el = document.getElementById('tt-' + slugify(lang));
-      if (el) { el.textContent = 'Error'; el.className = 'tt loading'; }
-    });
+  }
   }
   setTimeout(() => {
     document.getElementById('mic-btn').className = isListening ? 'mic-btn listening' : 'mic-btn';
@@ -967,20 +858,11 @@ async function callOllama(prompt) {
   return parseJSON(d.message.content);
 }
 
-// ── History ────────────────────────────────────────────
-function addHistory(text) {
-  const time = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-  historyItems.unshift({time, text});
-  const list = document.getElementById('history');
-  if (historyItems.length === 1) list.innerHTML = '';
-  const item = document.createElement('div'); item.className = 'hi';
-  item.innerHTML = `<div class="hi-meta">${time} · ${providerLabel()}</div><div class="hi-text">${text}</div>`;
-  list.prepend(item);
-}
-window.clearHistory = function() {
-  historyItems = [];
-  document.getElementById('history').innerHTML = '<div class="empty-note">No translations yet</div>';
-};
 </script>
+<footer style="text-align:center;padding:20px 16px 28px;font-size:.68rem;color:var(--muted);line-height:1.7;border-top:1px solid var(--border);margin-top:24px">
+  Translation content is processed via your chosen AI provider and temporarily stored in Google Firebase (EU region recommended).<br>
+  No content is retained after the session ends. Google Firebase data processing terms apply: <a href="https://firebase.google.com/terms/data-processing-terms" target="_blank" style="color:var(--muted);text-decoration:underline">firebase.google.com/terms/data-processing-terms</a><br>
+  Participants should be informed that AI translation is in use. This tool is not a substitute for a qualified human interpreter.
+</footer>
 </body>
 </html>
