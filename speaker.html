@@ -252,11 +252,11 @@
     <div class="card-title">Setup — keys saved locally to this device only</div>
 
     <div class="provider-tabs">
-      <div class="ptab active" onclick="setProvider('anthropic')">Claude <span class="pill paid">paid</span></div>
+      <div class="ptab active" onclick="setProvider('chromeai')">Chrome AI <span class="pill">free · built-in</span><br><span style="font-size:.68rem;color:var(--muted);font-weight:400">Chromebook Plus</span></div>
+      <div class="ptab" onclick="setProvider('anthropic')">Claude <span class="pill paid">paid</span></div>
       <div class="ptab" onclick="setProvider('openai')">GPT-4o <span class="pill paid">paid</span></div>
       <div class="ptab" onclick="setProvider('gemini')">Gemini <span class="pill paid">paid</span></div>
       <div class="ptab" onclick="setProvider('ollama')">Ollama <span class="pill">free · local</span></div>
-      <div class="ptab" onclick="setProvider('chromeai')">Chrome AI <span class="pill">free · built-in</span></div>
     </div>
 
     <!-- Claude -->
@@ -330,9 +330,11 @@
     </div>
   </div>
 
-  <!-- PREVIEW -->
-  <div class="card" id="trans-section" style="display:none">
-    <div class="card-title">Live Translation Preview</div>
+  <!-- PREVIEW -->\n  <div class="card" id="trans-section" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="card-title" style="margin:0">Live Translation Preview</div>
+      <div id="model-chip" style="font-size:.68rem;color:var(--muted);opacity:0.55;font-family:'DM Mono',monospace"></div>
+    </div>
     <div class="trans-grid" id="trans-grid"></div>
   </div>
 
@@ -363,7 +365,7 @@ let listenerLangs = new Set();
 let isListening = false, recognition = null, inputMode = 'toggle', pttRecognition = null, pttActive = false;
 let selectedLangs = new Set();
 let historyItems = [];
-let currentProvider = 'anthropic';
+let currentProvider = 'chromeai';
 
 const PRESETS = ['Arabic','Somali','Dari','Tigrinya','Kurdish','Turkish','Polish',
   'Spanish','French','German','Urdu','Hindi','Amharic','Farsi','Romanian','Albanian'];
@@ -372,8 +374,9 @@ const PRESETS = ['Arabic','Somali','Dari','Tigrinya','Kurdish','Turkish','Polish
 window.setProvider = function(p) {
   currentProvider = p;
   if (p === 'chromeai') checkChromeAIAvailability();
-  document.querySelectorAll('.ptab').forEach((t, i) => {
-    t.classList.toggle('active', ['anthropic','openai','gemini','ollama'][i] === p);
+  document.querySelectorAll('.ptab').forEach(t => {
+    const match = t.getAttribute('onclick')?.match(/setProvider\('(\w+)'\)/);
+    if (match) t.classList.toggle('active', match[1] === p);
   });
   document.querySelectorAll('.provider-field').forEach(f => f.classList.remove('active'));
   document.getElementById('pf-' + p).classList.add('active');
@@ -391,8 +394,8 @@ window.addEventListener('load', () => {
   const savedRoom = localStorage.getItem('iesv_room-code') || '';
   const cleanRoom = (savedRoom && !savedRoom.includes('@') && !savedRoom.includes('.')) ? savedRoom : 'A11';
   document.getElementById('room-code').value = cleanRoom;
-  const savedProvider = localStorage.getItem('iesv_provider');
-  if (savedProvider) window.setProvider(savedProvider);
+  const savedProvider = localStorage.getItem('iesv_provider') || 'chromeai';
+  window.setProvider(savedProvider);
   renderChips();
 });
 
@@ -453,7 +456,14 @@ window.connectRoom = async function() {
 };
 
 function providerLabel() {
-  return {anthropic:'Claude',openai:'GPT-4o-mini',gemini:'Gemini Flash',ollama:'Ollama (local)',chromeai:'Chrome AI'}[currentProvider];
+  const labels = {
+    anthropic: 'Claude 3.5 Haiku',
+    openai:    'GPT-4o mini',
+    gemini:    'Gemini 2.0 Flash',
+    ollama:    'Ollama · ' + (document.getElementById('ollama-model')?.value || 'local'),
+    chromeai:  'Chrome AI · on-device'
+  };
+  return labels[currentProvider] || currentProvider;
 }
 
 function getKey() {
@@ -673,6 +683,8 @@ async function translateAndPush(text) {
 
   document.getElementById('mic-btn').className = 'mic-btn processing';
   setMicLabel('Translating...', 'active');
+  const modelChip = document.getElementById('model-chip');
+  if (modelChip) modelChip.textContent = providerLabel();
   selectedLangs.forEach(lang => {
     const el = document.getElementById('tt-' + slugify(lang));
     if (el) { el.textContent = 'Translating...'; el.className = 'tt loading'; }
