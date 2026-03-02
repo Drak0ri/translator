@@ -110,6 +110,16 @@
 
   .ts{font-size:.7rem;color:var(--muted);text-align:right;margin-top:4px}
 
+  /* Transcript history */
+  .transcript-section{margin-bottom:16px}
+  .transcript-heading{font-size:.7rem;font-weight:600;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.08em;margin-bottom:8px;padding:0 2px}
+  .transcript-entry{background:white;border-radius:12px;padding:14px 16px;
+    box-shadow:0 2px 10px rgba(0,0,0,.05);margin-bottom:8px;border-left:3px solid var(--border)}
+  .te-time{font-size:.68rem;color:var(--muted);margin-bottom:5px}
+  .te-text{font-size:1rem;line-height:1.55;color:var(--text);margin-bottom:4px}
+  .te-orig{font-size:.78rem;color:var(--muted2);font-style:italic;line-height:1.5}
+
   .mode-nav{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;
     background:rgba(15,25,41,.7);backdrop-filter:blur(8px);
     position:relative;z-index:2}
@@ -205,6 +215,11 @@
     </div>
 
     <div class="ts" id="last-ts"></div>
+
+    <div class="transcript-section" id="transcript-section" style="display:none">
+      <div class="transcript-heading">Earlier in this session</div>
+      <div id="transcript-log"></div>
+    </div>
   </div>
 </div>
 
@@ -250,6 +265,8 @@ async function hashPassword(password) {
   return hashArray.slice(0, 4).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 let currentTranslation = '', lastTranslations = {};
+let currentOriginal = '', currentTime = '';
+let transcript = []; // {text, orig, time}
 let extraLangs = new Set();
 let extrasOpen = false;
 
@@ -437,6 +454,8 @@ function handleUpdate(data) {
   const el = document.getElementById('hero-text');
   const dlStatus = document.getElementById('chrome-dl-status');
 
+  const time = new Date(data.ts).toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
   if (t) {
     // Check if it's a Chrome AI error message from the speaker
     if (t.startsWith('(error:') || t.startsWith('(unavailable:')) {
@@ -445,7 +464,14 @@ function handleUpdate(data) {
       // Trigger download on listener side too
       if (speakerProvider === 'chromeai') prewarmListenerTranslator(myLang);
     } else {
+      // Archive the outgoing translation before replacing it
+      if (currentTranslation) {
+        transcript.push({ text: currentTranslation, orig: currentOriginal, time: currentTime });
+        renderTranscript();
+      }
       currentTranslation = t;
+      currentOriginal = data.text;
+      currentTime = time;
       el.textContent = t;
       el.className = 'hero-text incoming';
       setTimeout(() => el.classList.remove('incoming'), 500);
@@ -460,9 +486,26 @@ function handleUpdate(data) {
   }
 
   document.getElementById('orig-text').textContent = data.text;
-  const time = new Date(data.ts).toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
   document.getElementById('last-ts').textContent = 'Last updated ' + time;
   updateExtraCards();
+}
+
+// ── Transcript history ────────────────────────────────
+function renderTranscript() {
+  const log = document.getElementById('transcript-log');
+  const section = document.getElementById('transcript-section');
+  if (!transcript.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  // Rebuild from scratch (list is append-only so this is cheap)
+  log.innerHTML = '';
+  transcript.forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'transcript-entry';
+    div.innerHTML = `<div class="te-time">${entry.time}</div>
+      <div class="te-text">${entry.text}</div>
+      <div class="te-orig">${entry.orig}</div>`;
+    log.appendChild(div);
+  });
 }
 
 // ── Extras ────────────────────────────────────────────
@@ -520,6 +563,8 @@ window.changeLanguage = async function() {
   document.getElementById('hero-lang').textContent = sel;
   document.getElementById('hero-text').textContent = 'Waiting for next phrase in ' + sel + '...';
   document.getElementById('hero-text').className = 'hero-text waiting';
+  currentTranslation = ''; currentOriginal = ''; currentTime = '';
+  transcript = []; renderTranscript();
   setStatus('ok', `Connected · <strong>${sel}</strong>`);
 
   // Show immediate feedback while Firebase registers the change
