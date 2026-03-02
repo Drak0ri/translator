@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Translator — OCR</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%232563eb'/><stop offset='100%25' stop-color='%230ea5e9'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)'/><text y='.9em' font-size='72' x='50%25' text-anchor='middle'>🌐</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#05080f;--surface:#0d1117;--card:#111927;--border:#1e2d45;
+    --accent:#2563eb;--accent2:#0ea5e9;--success:#10b981;--warn:#f59e0b;--danger:#ef4444;
+    --text:#e8f0ff;--muted:#4a6080;--muted2:#7a9ab8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+
+  /* ── Header ── */
+  header{display:flex;align-items:center;justify-content:space-between;
+    padding:14px 24px;border-bottom:1px solid var(--border);
+    background:rgba(5,8,15,.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:10}
+  .header-left{display:flex;align-items:center;gap:10px}
+  .badge{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;
+    font-family:'Syne',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:.1em;
+    padding:3px 9px;border-radius:6px;text-transform:uppercase}
+  header h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;letter-spacing:-.02em}
+
+  /* ── Mode nav ── */
+  .mode-nav{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;
+    background:rgba(15,25,41,.7);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+  .mnav-btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;
+    font-family:'Syne',sans-serif;font-weight:700;font-size:.75rem;letter-spacing:.04em;
+    color:rgba(255,255,255,.5);padding:7px 16px;border-radius:10px;
+    border:1px solid rgba(255,255,255,.1);transition:all .2s;white-space:nowrap}
+  .mnav-btn:hover{color:white;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.06)}
+  .mnav-btn.active{color:white;background:linear-gradient(135deg,rgba(37,99,235,.3),rgba(14,165,233,.2));
+    border-color:rgba(14,165,233,.5);box-shadow:0 0 12px rgba(14,165,233,.15)}
+
+  /* ── Layout ── */
+  .wrap{max-width:680px;margin:0 auto;padding:24px 20px 48px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;
+    padding:20px 22px;margin-bottom:16px}
+  .card-title{font-family:'Syne',sans-serif;font-size:.7rem;font-weight:700;
+    text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);margin-bottom:14px;
+    display:flex;align-items:center;justify-content:space-between}
+  label{display:block;font-size:.76rem;color:var(--muted2);margin-bottom:5px;margin-top:12px}
+  label:first-child{margin-top:0}
+  input,select,textarea{width:100%;background:var(--surface);border:1px solid var(--border);
+    border-radius:9px;padding:10px 13px;color:var(--text);font-family:'DM Sans',sans-serif;
+    font-size:.87rem;outline:none;transition:border-color .2s}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+  input[type=password]{font-family:'DM Mono',monospace}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:520px){.field-row{grid-template-columns:1fr}}
+  .hint{font-size:.72rem;color:var(--muted);margin-top:4px;line-height:1.4}
+  .hint a{color:var(--accent2);text-decoration:none}
+
+  /* ── Provider tabs ── */
+  .provider-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .ptab{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:7px 13px;font-size:.78rem;cursor:pointer;transition:all .15s;
+    font-family:'Syne',sans-serif;font-weight:700;color:var(--muted2);user-select:none}
+  .ptab:hover{border-color:var(--accent2);color:var(--text)}
+  .ptab.active{background:rgba(37,99,235,.12);border-color:var(--accent);color:#93c5fd}
+  .pill{font-size:.6rem;padding:2px 5px;border-radius:4px;margin-left:3px;
+    background:rgba(245,158,11,.1);color:var(--warn);vertical-align:middle}
+  .pill.free{background:rgba(16,185,129,.12);color:var(--success)}
+  .provider-field{display:none}.provider-field.active{display:block}
+
+  /* ── Input tabs ── */
+  .input-tabs{display:flex;gap:6px;margin-bottom:16px}
+  .itab{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:8px 18px;font-size:.82rem;cursor:pointer;transition:all .15s;
+    font-family:'Syne',sans-serif;font-weight:700;color:var(--muted2)}
+  .itab:hover{border-color:var(--accent2);color:var(--text)}
+  .itab.active{background:rgba(37,99,235,.12);border-color:var(--accent);color:#93c5fd}
+
+  /* ── Camera ── */
+  .cam-wrap{position:relative;background:var(--surface);border:1px solid var(--border);
+    border-radius:12px;overflow:hidden;margin-bottom:12px;min-height:140px;
+    display:flex;align-items:center;justify-content:center}
+  #cam-video{width:100%;display:none;border-radius:12px}
+  .cam-placeholder{color:var(--muted);font-size:.88rem;padding:40px 20px;text-align:center;line-height:1.6}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;
+    border:none;border-radius:9px;padding:10px 20px;font-family:'Syne',sans-serif;
+    font-weight:700;font-size:.82rem;cursor:pointer;transition:opacity .2s}
+  .btn:hover{opacity:.88}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:var(--surface);border:1px solid var(--border);color:var(--muted2)}
+  .btn-ghost:hover{border-color:var(--accent2);color:var(--text);opacity:1}
+  .btn-danger{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+  .btn-danger:hover{background:rgba(239,68,68,.25);opacity:1}
+
+  /* ── Drop zone ── */
+  .dropzone{border:2px dashed var(--border);border-radius:12px;padding:36px 20px;
+    text-align:center;cursor:pointer;transition:all .2s;color:var(--muted)}
+  .dropzone:hover,.dropzone.over{border-color:var(--accent2);color:var(--accent2);background:rgba(14,165,233,.04)}
+  .dropzone-icon{font-size:2rem;margin-bottom:10px}
+  .dropzone p{font-size:.88rem;line-height:1.6}
+  .dropzone .sub{font-size:.75rem;color:var(--muted);margin-top:4px}
+
+  /* ── OCR / translation output ── */
+  #ocr-text{min-height:110px;resize:vertical;line-height:1.65;font-size:.9rem}
+  .copy-btn{background:none;border:1px solid var(--border);border-radius:6px;
+    color:var(--muted2);font-size:.7rem;padding:3px 9px;cursor:pointer;font-family:'DM Sans',sans-serif;
+    transition:all .15s}
+  .copy-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+  #trans-output{font-size:1.05rem;line-height:1.75;color:var(--text);white-space:pre-wrap;
+    min-height:40px}
+  #img-preview{max-width:100%;max-height:180px;object-fit:contain;
+    border-radius:8px;margin-bottom:12px;display:none;border:1px solid var(--border)}
+
+  /* ── Status ── */
+  .status-line{display:flex;align-items:center;gap:8px;font-size:.82rem;
+    color:var(--muted2);margin-top:10px;min-height:22px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--border);
+    border-top-color:var(--accent2);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .dot-ok{width:9px;height:9px;border-radius:50%;background:var(--success);flex-shrink:0}
+  .dot-err{width:9px;height:9px;border-radius:50%;background:var(--danger);flex-shrink:0}
+  .dot-warn{width:9px;height:9px;border-radius:50%;background:var(--warn);flex-shrink:0}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="badge">OCR</div>
+    <h1>🌐 Live Translator</h1>
+  </div>
+</header>
+
+<nav class="mode-nav">
+  <a href="speaker.html" class="mnav-btn">🎤 Speaker</a>
+  <a href="meeting.html" class="mnav-btn">⇄ Meeting</a>
+  <a href="listener.html" class="mnav-btn">👂 Listener</a>
+  <a href="ocr.html" class="mnav-btn active">🔍 OCR</a>
+</nav>
+
+<div class="wrap">
+
+  <!-- ── Setup ── -->
+  <div class="card">
+    <div class="card-title">Provider &amp; Languages</div>
+
+    <div class="provider-tabs">
+      <div class="ptab active" data-p="anthropic" onclick="setProvider('anthropic')">Claude <span class="pill">paid</span></div>
+      <div class="ptab" data-p="openai" onclick="setProvider('openai')">GPT-4o <span class="pill">paid</span></div>
+      <div class="ptab" data-p="gemini" onclick="setProvider('gemini')">Gemini <span class="pill">paid</span></div>
+      <div class="ptab" data-p="ollama" onclick="setProvider('ollama')">Ollama <span class="pill free">free · local</span></div>
+      <div class="ptab" data-p="chromeai" onclick="setProvider('chromeai')">Chrome AI <span class="pill free">free · built-in</span></div>
+    </div>
+
+    <div class="provider-field active" id="pf-anthropic">
+      <label>API Key</label>
+      <input type="password" id="key-anthropic" placeholder="sk-ant-..." />
+      <div class="hint">Get at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys.</div>
+    </div>
+    <div class="provider-field" id="pf-openai">
+      <label>API Key</label>
+      <input type="password" id="key-openai" placeholder="sk-..." />
+      <div class="hint">Get at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a> → API Keys.</div>
+    </div>
+    <div class="provider-field" id="pf-gemini">
+      <label>API Key</label>
+      <input type="password" id="key-gemini" placeholder="AIzaSy..." />
+      <div class="hint">Get at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>.</div>
+    </div>
+    <div class="provider-field" id="pf-ollama">
+      <div class="field-row">
+        <div>
+          <label>Ollama Server URL</label>
+          <input type="text" id="key-ollama" placeholder="http://localhost:11434" />
+        </div>
+        <div>
+          <label>Model</label>
+          <input type="text" id="ollama-model" placeholder="qwen2.5:7b" />
+        </div>
+      </div>
+    </div>
+    <div class="provider-field" id="pf-chromeai">
+      <div id="chromeai-status" style="font-size:.83rem;color:var(--muted2);line-height:1.6;padding:4px 0">
+        Checking Chrome AI availability…
+      </div>
+    </div>
+
+    <div class="field-row" style="margin-top:14px">
+      <div>
+        <label>Language in the image</label>
+        <select id="src-lang"></select>
+        <div class="hint">Used by the OCR engine — pick the language the text is written in.</div>
+      </div>
+      <div>
+        <label>Translate to</label>
+        <select id="tgt-lang">
+          <option value="">— Extract text only —</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Image input ── -->
+  <div class="card">
+    <div class="card-title">Source Image</div>
+
+    <div class="input-tabs">
+      <button class="itab active" id="tab-camera" onclick="switchTab('camera')">📷 Camera</button>
+      <button class="itab" id="tab-upload" onclick="switchTab('upload')">📁 Upload</button>
+    </div>
+
+    <!-- Camera panel -->
+    <div id="panel-camera">
+      <div class="cam-wrap" id="cam-wrap">
+        <video id="cam-video" autoplay playsinline></video>
+        <div class="cam-placeholder" id="cam-placeholder">
+          Point your camera at printed text, a sign, or a document.<br>
+          <span style="font-size:.78rem;color:var(--muted)">Chromebook webcam or external camera</span>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="start-cam-btn" onclick="startCamera()">▶ Start Camera</button>
+        <button class="btn" id="capture-btn" style="display:none" onclick="captureFrame()">📷 Capture</button>
+        <button class="btn btn-ghost btn-danger" id="stop-cam-btn" style="display:none" onclick="stopCamera()">■ Stop</button>
+      </div>
+      <canvas id="cam-canvas" style="display:none"></canvas>
+    </div>
+
+    <!-- Upload panel -->
+    <div id="panel-upload" style="display:none">
+      <div class="dropzone" id="dropzone"
+           onclick="document.getElementById('file-input').click()"
+           ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="onDrop(event)">
+        <div class="dropzone-icon">🖼️</div>
+        <p>Drop an image here or click to browse</p>
+        <p class="sub">JPEG · PNG · WEBP · BMP · TIFF</p>
+        <input type="file" id="file-input" accept="image/*" style="display:none" onchange="onFileChange(event)" />
+      </div>
+    </div>
+
+    <div class="status-line" id="ocr-status" style="display:none"></div>
+  </div>
+
+  <!-- ── OCR result ── -->
+  <div class="card" id="ocr-card" style="display:none">
+    <div class="card-title">
+      Extracted Text
+      <button class="copy-btn" onclick="copyEl('ocr-text')">Copy</button>
+    </div>
+    <img id="img-preview" alt="Captured image" />
+    <textarea id="ocr-text" placeholder="OCR text will appear here…"></textarea>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button class="btn" id="trans-btn" onclick="doTranslate()">Translate →</button>
+      <div class="status-line" id="trans-status" style="margin-top:0;display:none"></div>
+    </div>
+  </div>
+
+  <!-- ── Translation result ── -->
+  <div class="card" id="trans-card" style="display:none">
+    <div class="card-title">
+      <span id="trans-card-title">Translation</span>
+      <button class="copy-btn" onclick="copyEl('trans-output')">Copy</button>
+    </div>
+    <div id="trans-output"></div>
+  </div>
+
+</div><!-- /wrap -->
+
+<footer style="text-align:center;padding:16px 16px 28px;font-size:.65rem;color:var(--muted);
+  line-height:1.7;border-top:1px solid var(--border);margin-top:8px">
+  OCR is performed locally in your browser using Tesseract.js. Translation is sent to your chosen AI provider.
+  No image data is uploaded to any server. Language model data is downloaded from jsDelivr CDN on first use.
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script type="module">
+
+// ── Language data ──────────────────────────────────────────────────────────
+const OCR_LANGS = [
+  'English','Arabic','Chinese (Simplified)','Chinese (Traditional)',
+  'Dutch','Farsi','French','German','Greek','Hindi','Indonesian','Italian',
+  'Japanese','Korean','Malay','Norwegian','Polish','Portuguese',
+  'Romanian','Russian','Spanish','Swedish','Turkish','Ukrainian','Urdu','Vietnamese',
+  'Albanian','Amharic','Somali','Tigrinya'
+];
+
+const TESSERACT_CODE = {
+  'English':'eng','Arabic':'ara','Chinese (Simplified)':'chi_sim',
+  'Chinese (Traditional)':'chi_tra','Dutch':'nld','Farsi':'fas',
+  'French':'fra','German':'deu','Greek':'ell','Hindi':'hin','Indonesian':'ind',
+  'Italian':'ita','Japanese':'jpn','Korean':'kor','Malay':'msa','Norwegian':'nor',
+  'Polish':'pol','Portuguese':'por','Romanian':'ron','Russian':'rus',
+  'Spanish':'spa','Swedish':'swe','Turkish':'tur','Ukrainian':'ukr',
+  'Urdu':'urd','Vietnamese':'vie','Albanian':'sqi','Amharic':'amh',
+  'Somali':'som','Tigrinya':'tir'
+};
+
+// Languages with very large Tesseract model downloads (warn user)
+const LARGE_MODELS = new Set(['Japanese','Korean','Chinese (Simplified)','Chinese (Traditional)']);
+
+const ALL_TARGET_LANGS = [
+  'English','Albanian','Amharic','Arabic','Dari','Dutch','Farsi','French','German',
+  'Greek','Hindi','Indonesian','Italian','Japanese','Korean','Kurdish','Malay','Norwegian',
+  'Polish','Portuguese','Romanian','Russian','Somali','Spanish','Swedish','Tigrinya',
+  'Turkish','Ukrainian','Urdu','Vietnamese'
+];
+
+// BCP47 codes for Chrome AI (Arabic excluded — not supported)
+const LANG_TO_BCP47 = {
+  'English':'en','Swedish':'sv','Dutch':'nl','French':'fr','German':'de',
+  'Greek':'el','Hindi':'hi','Indonesian':'id','Italian':'it','Japanese':'ja',
+  'Korean':'ko','Malay':'ms','Norwegian':'no','Farsi':'fa','Persian':'fa',
+  'Polish':'pl','Portuguese':'pt','Romanian':'ro','Russian':'ru',
+  'Spanish':'es','Turkish':'tr','Ukrainian':'uk','Urdu':'ur','Vietnamese':'vi',
+  'Chinese (Simplified)':'zh','Chinese':'zh'
+};
+
+// ── Provider state ─────────────────────────────────────────────────────────
+let currentProvider = 'anthropic';
+
+window.setProvider = function(p) {
+  currentProvider = p;
+  document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.ptab[data-p="${p}"]`).classList.add('active');
+  document.querySelectorAll('.provider-field').forEach(f => f.classList.remove('active'));
+  document.getElementById(`pf-${p}`).classList.add('active');
+};
+
+function getKey() {
+  if (currentProvider === 'ollama' || currentProvider === 'chromeai') return '';
+  return document.getElementById(`key-${currentProvider}`)?.value.trim() || '';
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  // Populate source (OCR) language
+  const srcSel = document.getElementById('src-lang');
+  OCR_LANGS.forEach(l => {
+    const o = document.createElement('option');
+    o.value = o.textContent = l;
+    srcSel.appendChild(o);
+  });
+
+  // Populate target language
+  const tgtSel = document.getElementById('tgt-lang');
+  ALL_TARGET_LANGS.forEach(l => {
+    const o = document.createElement('option');
+    o.value = o.textContent = l;
+    tgtSel.appendChild(o);
+  });
+
+  // Restore saved keys
+  ['anthropic','openai','gemini'].forEach(p => {
+    const saved = localStorage.getItem(`ocr_key_${p}`);
+    if (saved) document.getElementById(`key-${p}`).value = saved;
+  });
+  document.getElementById('key-ollama').value = localStorage.getItem('ocr_key_ollama') || 'http://localhost:11434';
+  document.getElementById('ollama-model').value = localStorage.getItem('ocr_ollama_model') || 'qwen2.5:7b';
+
+  // Restore last-used provider
+  const savedProvider = localStorage.getItem('ocr_provider');
+  if (savedProvider) setProvider(savedProvider);
+
+  checkChromeAI();
+  setupDropzone();
+});
+
+// ── Chrome AI check ────────────────────────────────────────────────────────
+async function checkChromeAI() {
+  const el = document.getElementById('chromeai-status');
+  if (!('Translator' in self)) {
+    el.textContent = '⚠️ Chrome AI not available. Requires Chrome 138+ on a supported Chromebook.';
+    el.style.color = 'var(--warn)';
+    return;
+  }
+  try {
+    const a = await Translator.availability({ sourceLanguage: 'en', targetLanguage: 'es' });
+    if (a === 'unavailable') {
+      el.textContent = '⚠️ Chrome AI Translator not available on this device.';
+      el.style.color = 'var(--warn)';
+    } else {
+      el.textContent = '✅ Chrome AI available. Supports a limited set of language pairs — an error will show if your chosen pair is unsupported.';
+      el.style.color = 'var(--success)';
+    }
+  } catch(e) {
+    el.textContent = '⚠️ Could not check Chrome AI: ' + e.message;
+    el.style.color = 'var(--warn)';
+  }
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+window.switchTab = function(tab) {
+  document.getElementById('panel-camera').style.display = tab === 'camera' ? 'block' : 'none';
+  document.getElementById('panel-upload').style.display = tab === 'upload' ? 'block' : 'none';
+  document.getElementById('tab-camera').classList.toggle('active', tab === 'camera');
+  document.getElementById('tab-upload').classList.toggle('active', tab === 'upload');
+  if (tab !== 'camera') stopCamera();
+};
+
+// ── Camera ─────────────────────────────────────────────────────────────────
+let cameraStream = null;
+
+window.startCamera = async function() {
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+    });
+    const video = document.getElementById('cam-video');
+    video.srcObject = cameraStream;
+    video.style.display = 'block';
+    document.getElementById('cam-placeholder').style.display = 'none';
+    document.getElementById('start-cam-btn').style.display = 'none';
+    document.getElementById('capture-btn').style.display = 'inline-flex';
+    document.getElementById('stop-cam-btn').style.display = 'inline-flex';
+  } catch(e) {
+    setOCRStatus('err', 'Camera access denied: ' + e.message);
+  }
+};
+
+window.captureFrame = function() {
+  const video = document.getElementById('cam-video');
+  const canvas = document.getElementById('cam-canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+  showPreviewAndOCR(dataUrl);
+};
+
+window.stopCamera = function() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  const video = document.getElementById('cam-video');
+  video.srcObject = null;
+  video.style.display = 'none';
+  document.getElementById('cam-placeholder').style.display = 'block';
+  document.getElementById('start-cam-btn').style.display = 'inline-flex';
+  document.getElementById('capture-btn').style.display = 'none';
+  document.getElementById('stop-cam-btn').style.display = 'none';
+};
+
+// ── File upload ────────────────────────────────────────────────────────────
+function setupDropzone() {
+  const dz = document.getElementById('dropzone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) readFile(file);
+    else setOCRStatus('err', 'Please drop an image file (JPEG, PNG, WEBP, etc.)');
+  });
+}
+
+window.dragOver = e => e.preventDefault();
+window.dragLeave = () => document.getElementById('dropzone').classList.remove('over');
+window.onDrop = e => {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) readFile(file);
+};
+
+window.onFileChange = function(e) {
+  const file = e.target.files[0];
+  if (file) readFile(file);
+};
+
+function readFile(file) {
+  const reader = new FileReader();
+  reader.onload = evt => showPreviewAndOCR(evt.target.result);
+  reader.readAsDataURL(file);
+}
+
+// ── OCR ────────────────────────────────────────────────────────────────────
+function showPreviewAndOCR(dataUrl) {
+  const preview = document.getElementById('img-preview');
+  preview.src = dataUrl;
+  preview.style.display = 'block';
+  document.getElementById('ocr-card').style.display = 'block';
+  document.getElementById('trans-card').style.display = 'none';
+  document.getElementById('ocr-text').value = '';
+  doOCR(dataUrl);
+}
+
+async function doOCR(dataUrl) {
+  const srcLang = document.getElementById('src-lang').value;
+  const tessCode = TESSERACT_CODE[srcLang] || 'eng';
+  const isLarge = LARGE_MODELS.has(srcLang);
+
+  setOCRStatus('loading', isLarge
+    ? `Downloading OCR model for ${srcLang} (this may take a moment — large language pack)…`
+    : `Starting OCR for ${srcLang}…`);
+
+  document.getElementById('trans-btn').disabled = true;
+  document.getElementById('ocr-text').value = '';
+
+  try {
+    const result = await Tesseract.recognize(dataUrl, tessCode, {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          setOCRStatus('loading', `OCR ${Math.round(m.progress * 100)}%…`);
+        } else if (m.status.includes('load') || m.status.includes('initializ')) {
+          setOCRStatus('loading', `Loading OCR engine for ${srcLang}…`);
+        }
+      }
+    });
+    const text = result.data.text.trim();
+    document.getElementById('ocr-text').value = text || '(no text detected)';
+    setOCRStatus('ok', 'OCR complete — review the text above and edit if needed, then click Translate.');
+  } catch(e) {
+    setOCRStatus('err', 'OCR failed: ' + e.message);
+  } finally {
+    document.getElementById('trans-btn').disabled = false;
+  }
+}
+
+// ── Translation ────────────────────────────────────────────────────────────
+window.doTranslate = async function() {
+  const text = document.getElementById('ocr-text').value.trim();
+  if (!text || text === '(no text detected)') return;
+
+  const tgtLang = document.getElementById('tgt-lang').value;
+  if (!tgtLang) {
+    // Extract-only mode — nothing to do, text is already shown
+    return;
+  }
+
+  // Save keys
+  ['anthropic','openai','gemini'].forEach(p => {
+    const el = document.getElementById(`key-${p}`);
+    if (el?.value.trim()) localStorage.setItem(`ocr_key_${p}`, el.value.trim());
+  });
+  localStorage.setItem('ocr_key_ollama', document.getElementById('key-ollama').value.trim());
+  localStorage.setItem('ocr_ollama_model', document.getElementById('ollama-model').value.trim());
+  localStorage.setItem('ocr_provider', currentProvider);
+
+  if (!getKey() && currentProvider !== 'ollama' && currentProvider !== 'chromeai') {
+    setTransStatus('err', 'Please enter an API key for ' + currentProvider + '.');
+    document.getElementById('trans-card').style.display = 'block';
+    return;
+  }
+
+  const srcLang = document.getElementById('src-lang').value;
+  setTransStatus('loading', 'Translating…');
+  document.getElementById('trans-card').style.display = 'block';
+  document.getElementById('trans-output').textContent = '';
+  document.getElementById('trans-card-title').textContent = `Translation → ${tgtLang}`;
+
+  const prompt = `Translate the following text from ${srcLang} to ${tgtLang}. Return only the translated text with no explanation, preamble, or commentary.\n\n${text}`;
+
+  try {
+    let translation;
+    if (currentProvider === 'chromeai')   translation = await translateChromeAI(text, srcLang, tgtLang);
+    else if (currentProvider === 'anthropic') translation = await callAnthropic(prompt);
+    else if (currentProvider === 'openai')    translation = await callOpenAI(prompt);
+    else if (currentProvider === 'gemini')    translation = await callGemini(prompt);
+    else if (currentProvider === 'ollama')    translation = await callOllama(prompt);
+
+    document.getElementById('trans-output').textContent = translation;
+    setTransStatus('ok', `Translated to ${tgtLang}`);
+  } catch(e) {
+    document.getElementById('trans-output').textContent = '';
+    setTransStatus('err', e.message);
+  }
+};
+
+// ── Chrome AI translation ──────────────────────────────────────────────────
+async function translateChromeAI(text, srcLang, tgtLang) {
+  if (!('Translator' in self)) throw new Error('Chrome AI Translator not available on this browser.');
+  const srcCode = LANG_TO_BCP47[srcLang];
+  const tgtCode = LANG_TO_BCP47[tgtLang];
+  if (!srcCode) throw new Error(`"${srcLang}" is not supported as a source by Chrome AI.`);
+  if (!tgtCode) throw new Error(`"${tgtLang}" is not supported as a target by Chrome AI.`);
+  const avail = await Translator.availability({ sourceLanguage: srcCode, targetLanguage: tgtCode });
+  if (avail === 'unavailable') throw new Error(`${srcLang} → ${tgtLang} is not supported by Chrome AI on this device.`);
+  const translator = await Translator.create({ sourceLanguage: srcCode, targetLanguage: tgtCode });
+  return await translator.translate(text);
+}
+
+// ── API calls ──────────────────────────────────────────────────────────────
+async function callAnthropic(prompt) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'x-api-key': getKey(),
+      'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2048, messages:[{role:'user',content:prompt}] })
+  });
+  const d = await res.json();
+  if (d.error) throw new Error(d.error.message);
+  return d.content[0].text.trim();
+}
+
+async function callOpenAI(prompt) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + getKey() },
+    body: JSON.stringify({ model:'gpt-4o-mini', max_tokens:2048, messages:[{role:'user',content:prompt}] })
+  });
+  const d = await res.json();
+  if (d.error) throw new Error(d.error.message);
+  return d.choices[0].message.content.trim();
+}
+
+async function callGemini(prompt) {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getKey()}`,
+    { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }] }) }
+  );
+  const d = await res.json();
+  if (d.error) throw new Error(d.error.message);
+  return d.candidates[0].content.parts[0].text.trim();
+}
+
+async function callOllama(prompt) {
+  const base = (document.getElementById('key-ollama').value.trim() || 'http://localhost:11434').replace(/\/$/, '');
+  const model = document.getElementById('ollama-model').value.trim() || 'qwen2.5:7b';
+  const res = await fetch(`${base}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ model, stream:false, messages:[{role:'user',content:prompt}] })
+  });
+  const d = await res.json();
+  if (d.error) throw new Error(d.error);
+  return d.message.content.trim();
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function setOCRStatus(type, msg) {
+  const el = document.getElementById('ocr-status');
+  el.style.display = 'flex';
+  el.innerHTML = type === 'loading'
+    ? `<span class="spin"></span><span>${msg}</span>`
+    : type === 'ok'
+    ? `<span class="dot-ok"></span><span>${msg}</span>`
+    : `<span class="dot-err"></span><span style="color:var(--danger)">${msg}</span>`;
+}
+
+function setTransStatus(type, msg) {
+  const el = document.getElementById('trans-status');
+  el.style.display = 'flex';
+  el.innerHTML = type === 'loading'
+    ? `<span class="spin"></span><span>${msg}</span>`
+    : type === 'ok'
+    ? `<span class="dot-ok"></span><span>${msg}</span>`
+    : `<span class="dot-err"></span><span style="color:var(--danger)">${msg}</span>`;
+}
+
+window.copyEl = async function(id) {
+  const el = document.getElementById(id);
+  const text = el.value !== undefined ? el.value : el.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.querySelector(`[onclick="copyEl('${id}')"]`);
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 1800); }
+  } catch(e) {
+    // clipboard not available
+  }
+};
+
+</script>
+</body>
+</html>
