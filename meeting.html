@@ -325,7 +325,6 @@
   <a href="speaker.html" class="mnav-btn">🎤 Speaker</a>
   <a href="meeting.html" class="mnav-btn active">⇄ Meeting</a>
   <a href="listener.html" class="mnav-btn">👂 Listener</a>
-  <a href="ocr.html" class="mnav-btn">🔍 OCR</a>
 </div>
 
 <!-- ══════════════════════════════════════
@@ -522,18 +521,38 @@ const FB_CONFIG = {
 };
 
 const SPEAKER_LANGS = [
-  {label:'English (UK)', code:'en-GB'}, {label:'English (US)', code:'en-US'},
-  {label:'Swedish', code:'sv-SE'}, {label:'Arabic', code:'ar-SA'},
-  {label:'Chinese', code:'zh-CN'}, {label:'Dutch', code:'nl-NL'},
-  {label:'French', code:'fr-FR'}, {label:'German', code:'de-DE'},
-  {label:'Greek', code:'el-GR'}, {label:'Hindi', code:'hi-IN'},
-  {label:'Italian', code:'it-IT'}, {label:'Japanese', code:'ja-JP'},
-  {label:'Korean', code:'ko-KR'}, {label:'Norwegian', code:'no-NO'},
-  {label:'Persian', code:'fa-IR'}, {label:'Polish', code:'pl-PL'},
-  {label:'Portuguese', code:'pt-BR'}, {label:'Romanian', code:'ro-RO'},
-  {label:'Russian', code:'ru-RU'}, {label:'Spanish', code:'es-ES'},
-  {label:'Turkish', code:'tr-TR'}, {label:'Ukrainian', code:'uk-UA'},
-  {label:'Urdu', code:'ur-PK'}, {label:'Vietnamese', code:'vi-VN'},
+  {label:'Albanian',          code:'sq-AL'},
+  {label:'Amharic',           code:'am-ET'},
+  {label:'Arabic',            code:'ar-SA'},
+  {label:'Chinese (Mandarin)',code:'zh-CN'},
+  {label:'Dari',              code:'fa-AF'},
+  {label:'Dutch',             code:'nl-NL'},
+  {label:'English (UK)',      code:'en-GB'},
+  {label:'English (US)',      code:'en-US'},
+  {label:'French',            code:'fr-FR'},
+  {label:'German',            code:'de-DE'},
+  {label:'Greek',             code:'el-GR'},
+  {label:'Hindi',             code:'hi-IN'},
+  {label:'Indonesian',        code:'id-ID'},
+  {label:'Italian',           code:'it-IT'},
+  {label:'Japanese',          code:'ja-JP'},
+  {label:'Korean',            code:'ko-KR'},
+  {label:'Kurdish (Kurmanji)',code:'ku'},
+  {label:'Malay',             code:'ms-MY'},
+  {label:'Norwegian',         code:'no-NO'},
+  {label:'Persian (Farsi)',   code:'fa-IR'},
+  {label:'Polish',            code:'pl-PL'},
+  {label:'Portuguese',        code:'pt-BR'},
+  {label:'Romanian',          code:'ro-RO'},
+  {label:'Russian',           code:'ru-RU'},
+  {label:'Somali',            code:'so-SO'},
+  {label:'Spanish',           code:'es-ES'},
+  {label:'Swedish',           code:'sv-SE'},
+  {label:'Tigrinya',          code:'ti-ET'},
+  {label:'Turkish',           code:'tr-TR'},
+  {label:'Ukrainian',         code:'uk-UA'},
+  {label:'Urdu',              code:'ur-PK'},
+  {label:'Vietnamese',        code:'vi-VN'},
 ];
 
 const LANG_NAMES = Object.fromEntries(SPEAKER_LANGS.map(l => [l.code, l.label]));
@@ -1456,7 +1475,7 @@ const chromeErrorReason = {}; // key -> human-readable failure reason
 const chromeDownloadState = {};
 
 const LANG_TO_BCP47 = {
-  'English':'en','Swedish':'sv','Chinese':'zh','Dutch':'nl',
+  'English':'en','Swedish':'sv','Arabic':'ar','Chinese':'zh','Dutch':'nl',
   'French':'fr','German':'de','Greek':'el','Hindi':'hi','Indonesian':'id',
   'Italian':'it','Japanese':'ja','Korean':'ko','Malay':'ms','Norwegian':'no',
   'Persian':'fa','Polish':'pl','Portuguese':'pt','Romanian':'ro','Russian':'ru',
