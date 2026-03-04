@@ -1109,7 +1109,7 @@ async function translateAndPush(sp, text) {
     else if (currentProvider === 'openai')    translations = await callOpenAI(prompt);
     else if (currentProvider === 'gemini')    translations = await callGemini(prompt);
     else if (currentProvider === 'chromeai')  translations = await callChromeAI(text, allLangs, sp.langCode.split('-')[0]);
-    else                                      translations = await callOllama(prompt);
+    else                                      translations = await callOllama(prompt, allLangs);
 
     allLangs.forEach(lang => {
       const el = document.getElementById('tc-' + slugify(lang));
@@ -1209,7 +1209,7 @@ async function prewarmTranslationProvider() {
     else if (currentProvider === 'openai')    translations = await callOpenAI(prompt);
     else if (currentProvider === 'gemini')    translations = await callGemini(prompt);
     else if (currentProvider === 'chromeai')  translations = await callChromeAI(testPhrase, allLangs, sp.langCode.split('-')[0]);
-    else                                      translations = await callOllama(prompt);
+    else                                      translations = await callOllama(prompt, allLangs);
 
     // Show the test result briefly so user can see it's working
     document.getElementById('display-original').textContent = '✓ Ready — "Hello"';
@@ -1346,7 +1346,7 @@ function providerLabel() {
     anthropic: 'Claude 3.5 Haiku',
     openai:    'GPT-4o mini',
     gemini:    'Gemini 2.0 Flash',
-    ollama:    'Ollama · ' + (document.getElementById('ollama-model')?.value || 'local'),
+    ollama:    'Ollama · ' + (lastOllamaModel || document.getElementById('ollama-model')?.value || 'local'),
     chromeai:  'Chrome AI · on-device'
   };
   return labels[currentProvider] || currentProvider;
@@ -1824,12 +1824,25 @@ async function callGemini(prompt) {
   if (d.error) throw new Error(d.error.message);
   return parseJSON(d.candidates[0].content.parts[0].text);
 }
-async function callOllama(prompt) {
+const COMPLEX_LANGS = new Set([
+  'Arabic','Hindi','Urdu','Japanese','Korean','Chinese','Vietnamese',
+  'Persian','Indonesian','Malay','Greek','Ukrainian','Russian',
+  'Polish','Romanian','Turkish','Amharic','Somali','Tigrinya','Kurdish','Dari'
+]);
+
+function pickOllamaModel(targetLangs) {
+  return targetLangs.some(l => COMPLEX_LANGS.has(l)) ? 'qwen3:8b' : 'gemma3:4b';
+}
+
+let lastOllamaModel = '';
+
+async function callOllama(prompt, targetLangs = []) {
   const base = (document.getElementById('key-ollama').value.trim() || 'http://localhost:11434').replace(/\/$/, '');
-  const model = document.getElementById('ollama-model').value.trim() || 'qwen2.5:7b';
+  const model = targetLangs.length ? pickOllamaModel(targetLangs) : (document.getElementById('ollama-model').value.trim() || 'qwen3:8b');
+  lastOllamaModel = model;
   const res = await fetch(`${base}/api/chat`, {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({model, stream:false, messages:[{role:'user',content:prompt}]})
+    body: JSON.stringify({model, stream:false, think:false, messages:[{role:'user',content:prompt}]})
   });
   const d = await res.json();
   if (d.error) throw new Error(d.error);
