@@ -355,7 +355,7 @@ async function hashPassword(password) {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.slice(0, 4).map(b => b.toString(16).padStart(2, '0')).join('');
 }
-function checkPasswordStrength(val) {
+window.checkPasswordStrength = function checkPasswordStrength(val) {
   const hint = document.getElementById('pw-hint');
   if (!hint) return;
   if (val.length === 0) {
