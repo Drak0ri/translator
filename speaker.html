@@ -151,7 +151,6 @@
   <a href="speaker.html" class="mnav-btn active">🎤 Speaker</a>
   <a href="meeting.html" class="mnav-btn">⇄ Meeting</a>
   <a href="listener.html" class="mnav-btn">👂 Listener</a>
-  <a href="ocr.html" class="mnav-btn">🔍 OCR</a>
 </div>
 <div class="main">
 
@@ -240,6 +239,8 @@
 
       <div class="mic-label" id="mic-label">Connect to a room first, then press mic</div>
       <div class="transcript-box empty" id="transcript">Spoken words will appear here...</div>
+      <div id="model-pill" style="display:none;font-family:'DM Mono',monospace;font-size:.68rem;
+        padding:3px 10px;border-radius:6px;margin-top:4px;transition:opacity .3s"></div>
     </div>
   </div>
 
@@ -298,7 +299,7 @@
         <div>
           <label>Model</label>
           <input type="text" id="ollama-model" placeholder="qwen2.5:7b" />
-          <div class="hint">Recommended for GTX 1070: <code>qwen2.5:7b</code>. First run <code>ollama pull qwen2.5:7b</code> on the server PC.</div>
+          <div class="hint">Recommended for GTX 1070: <code>qwen3:8b</code>. First run <code>ollama pull qwen3:8b</code> on the server PC.</div>
         </div>
       </div>
     </div>
@@ -465,7 +466,7 @@ function providerLabel() {
     anthropic: 'Claude 3.5 Haiku',
     openai:    'GPT-4o mini',
     gemini:    'Gemini 2.0 Flash',
-    ollama:    'Ollama · ' + (document.getElementById('ollama-model')?.value || 'local'),
+    ollama:    'Ollama · ' + (lastOllamaModel || document.getElementById('ollama-model')?.value || 'local'),
     chromeai:  'Chrome AI · on-device'
   };
   return labels[currentProvider] || currentProvider;
@@ -771,6 +772,20 @@ function setMicLabel(msg, type = '') {
   el.className = 'mic-label' + (type ? ' ' + type : '');
 }
 
+function showModelPill() {
+  if (currentProvider !== 'ollama') return;
+  const pill = document.getElementById('model-pill');
+  if (!pill) return;
+  const model = lastOllamaModel || 'ollama';
+  const isStrong = model.includes('qwen3');
+  pill.textContent = model;
+  pill.style.background = isStrong ? 'rgba(124,58,237,.15)' : 'rgba(16,185,129,.12)';
+  pill.style.color = isStrong ? '#c4b5fd' : '#6ee7b7';
+  pill.style.display = 'inline-block';
+  clearTimeout(pill._hide);
+  pill._hide = setTimeout(() => { pill.style.display = 'none'; }, 8000);
+}
+
 // ── Translation ────────────────────────────────────────
 async function translateAndPush(text) {
   if (!text) return;
@@ -797,11 +812,12 @@ async function translateAndPush(text) {
     if      (currentProvider === 'anthropic') translations = await callAnthropic(prompt);
     else if (currentProvider === 'openai')    translations = await callOpenAI(prompt);
     else if (currentProvider === 'gemini')    translations = await callGemini(prompt);
-    else if (currentProvider === 'ollama')    translations = await callOllama(prompt);
+    else if (currentProvider === 'ollama')    translations = await callOllama(prompt, [...allLangs]);
     else if (currentProvider === 'chromeai')  translations = await callChromeAI(text, [...allLangs]);
 
     if (db) await set(ref(db, `rooms/${firebasePath}/latest`), {text, translations, ts: Date.now(), langs: [...allLangs]});
     setMicLabel('Translated — ready for next phrase', 'active');
+    showModelPill();
   } catch(e) {
     setMicLabel('Error: ' + e.message, 'err');
   }
@@ -819,7 +835,7 @@ const chromeDownloadState = {};     // key: "en->sv"  value: 'downloading'|'read
 const chromeErrorReason = {};       // key: "en->sv"  value: human-readable failure reason
 
 const LANG_TO_BCP47 = {
-  'English':'en','Swedish':'sv','Chinese':'zh','Dutch':'nl',
+  'English':'en','Swedish':'sv','Arabic':'ar','Chinese':'zh','Dutch':'nl',
   'French':'fr','German':'de','Greek':'el','Hindi':'hi','Indonesian':'id',
   'Italian':'it','Japanese':'ja','Korean':'ko','Malay':'ms','Norwegian':'no',
   'Persian':'fa','Polish':'pl','Portuguese':'pt','Romanian':'ro','Russian':'ru',
@@ -1176,13 +1192,28 @@ async function callGemini(prompt) {
   return parseJSON(d.candidates[0].content.parts[0].text);
 }
 
-async function callOllama(prompt) {
+// Languages that need a stronger model for quality translation
+const COMPLEX_LANGS = new Set([
+  'Arabic','Hindi','Urdu','Japanese','Korean','Chinese','Vietnamese',
+  'Persian','Indonesian','Malay','Greek','Ukrainian','Russian',
+  'Polish','Romanian','Turkish','Amharic','Somali','Tigrinya','Kurdish','Dari'
+]);
+
+function pickOllamaModel(targetLangs) {
+  const needsStrong = targetLangs.some(l => COMPLEX_LANGS.has(l));
+  return needsStrong ? 'qwen3:8b' : 'gemma3:4b';
+}
+
+let lastOllamaModel = ''; // tracked for UI display
+
+async function callOllama(prompt, targetLangs = []) {
   const base = (document.getElementById('key-ollama').value.trim() || 'http://localhost:11434').replace(/\/$/, '');
-  const model = document.getElementById('ollama-model').value.trim() || 'qwen2.5:7b';
+  const model = targetLangs.length ? pickOllamaModel(targetLangs) : (document.getElementById('ollama-model').value.trim() || 'qwen3:8b');
+  lastOllamaModel = model;
   const res = await fetch(`${base}/api/chat`, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({model, stream:false, messages:[{role:'user',content:prompt}]})
+    body: JSON.stringify({model, stream:false, think:false, messages:[{role:'user',content:prompt}]})
   });
   const d = await res.json();
   if (d.error) throw new Error(d.error);
